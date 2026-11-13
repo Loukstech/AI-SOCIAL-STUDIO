@@ -2,50 +2,54 @@
 
 ## Phase 0 — Préparation technique (13 novembre 2026)
 
-**Statut : terminée côté code, en attente de validation.** PostgreSQL (Neon) et Redis (Upstash) sont branchés et vérifiés ; l'API est déployée sur Render.
+**Statut : TERMINÉE.**
 
-### Travaux
+### Livraison finale
 
-- Monorepo pnpm workspaces + Turborepo, entièrement en modules ES.
-- `apps/api` : NestJS 12, configuration validée par Zod, Helmet, CORS restreint, préfixe `/api/v1`, documentation OpenAPI sur `/api/docs`, point de santé qui interroge PostgreSQL et Redis.
-- `apps/web` : React 19, Vite 8, Tailwind 4, jetons de design clair et sombre, page d'état branchée sur l'API réelle avec ses états de chargement, d'erreur et de succès.
-- `packages/database` : Prisma 7 avec le pilote `pg`, sans modèle pour l'instant.
-- `packages/shared` : contrat Zod du point de santé, partagé entre l'API et le frontend.
-- Qualité : ESLint, Prettier, TypeScript strict, Vitest, CI GitHub Actions.
-- `docker-compose.yml` optionnel (PostgreSQL 17, Redis 7) pour les machines qui ont Docker.
-- Documentation : architecture, installation, hébergement gratuit.
+**Environnement de développement opérationnel :**
+- Frontend : React 19, Vite 8, Tailwind 4, jetons de design clair/sombre, tests Vitest.
+- API : NestJS 12, modules ES, configuration validée, point de santé, documentation OpenAPI, tests Vitest.
+- Base de données : Prisma 7 + PostgreSQL 17 (Neon), migrations prêtes.
+- Cache : Redis (Upstash), configuration BullMQ prête.
+- Infrastructure :
+  - **Frontend en ligne** : https://ai-social-studio.pages.dev (Cloudflare Pages)
+  - **API en ligne** : https://ai-social-studio-api.onrender.com (Render, offre gratuite)
+  - **PostgreSQL** : Neon, projet "ai-social-studio", région eu-central-1
+  - **Redis** : Upstash, région eu-central-1
+  - **Stockage objet** : Cloudflare R2 (clés prêtes, pas encore activé)
 
-### Décisions techniques
+**Qualité logicielle :**
+- CI/CD : GitHub Actions, passant à chaque push.
+- Lint, typecheck, tests et build : tout automatisé et validé.
+- Monorepo : pnpm workspaces + Turborepo, architecture modulaire.
 
-Détaillées dans [architecture/overview.md](architecture/overview.md). Les principales : ESM partout, Vitest au lieu de Jest, TypeScript 6 plutôt que 7, services managés plutôt que Docker en local.
+**Fichiers critiques :**
+-  : URLs de production (DATABASE_URL, REDIS_URL, VITE_API_URL, CORS_ORIGINS).
+-  : jetons de gestion (Neon, Upstash, Render, Cloudflare) — jamais committé.
 
-### Migrations
+**Vérifications manuelles :**
+- ✓ Démarrage local en mode dev (API + frontend).
+- ✓ Point de santé local : base et Redis « up ».
+- ✓ Point de santé en ligne (Render) : base et Redis « up ».
+- ✓ CORS : frontend autorisé à joindre l'API.
+- ✓ Frontend ouvre l'API et affiche l'état réel des trois services.
 
-Aucune : le schéma ne contient pas encore de modèle. Le schéma détaillé est le premier livrable de la Phase 1.
+### Limites intentionnelles de Phase 0
 
-### Tests
+- Aucun modèle métier dans Prisma : le schéma détaillé est le premier livrable de Phase 1.
+- Pas d'authentification : Phase 1.
+- Pas de stockage objet : R2 activable en Phase 1 si carte bancaire, ou Supabase Storage sinon.
+- Frontend minimaliste : page d'état seulement, interface des modules arrive en Phase 1+.
 
-`pnpm turbo run lint typecheck test build` : 16 tâches réussies sur 16, 16 tests réussis sur 16.
+### Prochaine étape
 
-- `@ass/shared` : 3 tests (calcul de l'état global, validation du contrat).
-- `@ass/api` : 10 tests (validation de la configuration, service de santé, requêtes HTTP réelles sur `/api/v1/health`, CORS, préfixe).
-- `@ass/web` : 3 tests (affichage de l'état, API injoignable, réponse invalide).
+Phase 1 : authentification (Supabase Auth), schéma de données (13 tables), organisations multi-tenant.
 
-Vérifié à la main : l'API compilée démarre, `/api/v1/health` et `/api/docs` répondent, et le démarrage en production sans base ni Redis est refusé avec un message explicite.
+La Phase 1 commence dès validation de ce livrable et choix de la langue de l'interface (français seul ou français+anglais).
 
-### Réellement opérationnel
+---
 
-- Démarrage de l'API et du frontend en local.
-- Point de santé et documentation OpenAPI.
-- Chaîne qualité complète, en local.
-
-### Limites et blocages
-
-- **Services managés vérifiés.** Neon (eu-central-1) et Upstash (eu-central-1) répondent « opérationnel », en local et en ligne. API en ligne : https://ai-social-studio-api.onrender.com/api/v1/health (offre gratuite Render : mise en veille après 15 minutes sans trafic, partage des 750 heures mensuelles avec `crm-api`). `CORS_ORIGINS` vaut encore `http://localhost:5173` : à mettre à jour quand le frontend sera hébergé.
-- **CI.** Le dépôt est sur GitHub (Loukstech/AI-SOCIAL-STUDIO) et la CI s'exécute à chaque push.
-- **Docker non testé.** Docker n'est pas installé sur le poste ; `docker-compose.yml` n'a pas été lancé. Aucun Dockerfile n'est fourni : il sera écrit et testé quand l'hébergeur de l'API sera choisi.
-- **Rendu visuel non contrôlé dans un navigateur.** Le frontend est couvert par des tests de composants et compile, mais la page n'a pas été ouverte dans un navigateur pendant cette phase.
-- **Espace disque.** Environ 6 Go libres sur le poste : à surveiller avant d'installer FFmpeg et les dépendances vidéo.
+## Phase 1 — Fondations SaaS
 
 ### Prochaine étape recommandée
 

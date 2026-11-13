@@ -16,8 +16,7 @@ cp .env.example .env     # puis renseigner DATABASE_URL et REDIS_URL (voir ci-de
 pnpm dev                 # API sur http://localhost:3000, web sur http://localhost:5173
 ```
 
-Sans `DATABASE_URL` ni `REDIS_URL`, l'API démarre quand même en développement et la page d'accueil affiche « Non configuré » pour ces services. Pour les obtenir gratuitement sans rien installer, suivre [docs/development/setup.md](docs/development/setup.md).
-
+Le fichier  contient tous les jetons de gestion (Neon, Upstash, Render, Cloudflare) — jamais committé.
 ## Commandes
 
 | Commande                             | Rôle                                             |
