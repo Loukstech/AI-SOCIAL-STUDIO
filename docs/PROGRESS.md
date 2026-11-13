@@ -2,7 +2,7 @@
 
 ## Phase 0 — Préparation technique (13 novembre 2026)
 
-**Statut : terminée côté code, en attente de validation.** PostgreSQL est branché et vérifié ; Redis reste à configurer (voir « Limites »).
+**Statut : terminée côté code, en attente de validation.** PostgreSQL (Neon) et Redis (Upstash) sont branchés et vérifiés ; l'API est déployée sur Render.
 
 ### Travaux
 
@@ -41,7 +41,7 @@ Vérifié à la main : l'API compilée démarre, `/api/v1/health` et `/api/docs`
 
 ### Limites et blocages
 
-- **Redis non exercé.** PostgreSQL (projet Neon `ai-social-studio`, région eu-central-1, PostgreSQL 17) répond « opérationnel » depuis l'API. Sans `REDIS_URL`, seul le cas « non configuré » a été vérifié pour Redis.
+- **Services managés vérifiés.** Neon (eu-central-1) et Upstash (eu-central-1) répondent « opérationnel », en local et en ligne. API en ligne : https://ai-social-studio-api.onrender.com/api/v1/health (offre gratuite Render : mise en veille après 15 minutes sans trafic, partage des 750 heures mensuelles avec `crm-api`). `CORS_ORIGINS` vaut encore `http://localhost:5173` : à mettre à jour quand le frontend sera hébergé.
 - **CI.** Le dépôt est sur GitHub (Loukstech/AI-SOCIAL-STUDIO) et la CI s'exécute à chaque push.
 - **Docker non testé.** Docker n'est pas installé sur le poste ; `docker-compose.yml` n'a pas été lancé. Aucun Dockerfile n'est fourni : il sera écrit et testé quand l'hébergeur de l'API sera choisi.
 - **Rendu visuel non contrôlé dans un navigateur.** Le frontend est couvert par des tests de composants et compile, mais la page n'a pas été ouverte dans un navigateur pendant cette phase.
@@ -49,6 +49,6 @@ Vérifié à la main : l'API compilée démarre, `/api/v1/health` et `/api/docs`
 
 ### Prochaine étape recommandée
 
-1. Créer la base Redis Upstash, renseigner `REDIS_URL`, constater les trois services « Opérationnel » sur la page d'accueil.
-2. Trancher les points ouverts listés dans [architecture/overview.md](architecture/overview.md).
+1. Trancher les points ouverts listés dans [architecture/overview.md](architecture/overview.md).
+2. Héberger le frontend (Cloudflare Pages) et mettre à jour `CORS_ORIGINS`.
 3. Phase 1 : schéma de données détaillé, puis authentification et organisations.
