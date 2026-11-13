@@ -1,0 +1,22 @@
+node_modules/
+dist/
+build/
+coverage/
+.turbo/
+*.tsbuildinfo
+
+# Secrets : ne jamais committer de fichier .env réel
+.env
+.env.*
+!.env.example
+
+# Client Prisma généré
+packages/database/src/generated/
+
+# Divers
+*.log
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+tmp/

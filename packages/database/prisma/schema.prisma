@@ -1,0 +1,15 @@
+// Schéma Prisma d'AI Social Studio.
+//
+// Phase 0 : aucun modèle métier. Le schéma détaillé (colonnes, index, contraintes,
+// enums, règles de suppression) est produit et validé au début de la Phase 1,
+// comme l'exige la section 19 du cahier des charges.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}

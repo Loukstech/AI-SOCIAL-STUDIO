@@ -1,0 +1,33 @@
+# OPTIONNEL — pour les machines disposant de Docker.
+# Le projet fonctionne sans Docker avec des services managés (voir docs/development/setup.md).
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ass
+      POSTGRES_PASSWORD: ass
+      POSTGRES_DB: ai_social_studio
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ass -d ai_social_studio']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    # BullMQ exige de ne jamais évincer de clés.
+    command: ['redis-server', '--maxmemory-policy', 'noeviction']
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres-data:
