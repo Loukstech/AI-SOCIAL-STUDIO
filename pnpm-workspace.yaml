@@ -10,3 +10,7 @@ allowBuilds:
   esbuild: true
   prisma: true
   unrs-resolver: true
+  # Refusés explicitement : télémétrie et binaire natif facultatif. Sans décision,
+  # pnpm fait échouer l'installation en CI.
+  '@parcel/watcher': false
+  '@scarf/scarf': false
