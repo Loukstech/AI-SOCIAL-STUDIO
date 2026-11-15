@@ -1,4 +1,4 @@
-# État du déploiement (Phase 6)
+# État du déploiement (Phase 7)
 
 ## Services en ligne
 
@@ -146,6 +146,13 @@ Le projet Cloudflare Pages est en **upload direct** (`ad_hoc`) : aucun dépôt G
 - Une publication programmée depuis plus de 7 jours sans envoi passe en `EXPIRED` au lieu de partir en retard.
 - `POST /api/v1/publications/run-due` (ADMIN) force un passage immédiat, utile pour vérifier la production.
 
+### Composition des visuels
+
+- Aucune variable d'environnement, aucune clé : le composeur SVG tourne dans le processus de l'API. Pas de coût variable, pas de dépendance externe, pas de quota.
+- Le SVG est stocké en base (colonne `text`) : un visuel pèse quelques kilo-octets, la limite Neon n'est pas un sujet à cette échelle.
+- L'aperçu web passe par une `data:` URI dans une balise `<img>` : le SVG ne peut pas exécuter de script.
+- Le téléchargement est servi par l'API (`Content-Disposition: attachment`). Un export PNG nécessiterait un moteur raster (resvg, sharp) ou un navigateur headless, non installés à ce stade.
+
 ### CORS
 
 - En production, `CORS_ORIGINS=https://ai-social-studio.pages.dev` ; en local, `http://localhost:5173`.
@@ -174,6 +181,7 @@ pnpm test:phase3                  # parcours E2E : projets vidéo, transcription
 pnpm test:phase4                  # parcours E2E : édition, 7 styles, exports, clips
 pnpm test:phase5                  # parcours E2E : génération de contenus, assistant
 pnpm test:phase6                  # parcours E2E : publication, calendrier, fuseau
+pnpm test:phase7                  # parcours E2E : visuels, Brand Kit, téléchargement
 
 # Déploiement
 pnpm --filter @ass/web build && npx wrangler pages deploy apps/web/dist --project-name ai-social-studio --branch main

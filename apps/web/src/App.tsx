@@ -6,6 +6,7 @@ import { BrandsPage } from './pages/BrandsPage';
 import { CalendarPage } from './pages/CalendarPage';
 import { ContentStudioPage } from './pages/ContentStudioPage';
 import { DashboardPage } from './pages/DashboardPage';
+import { ImageStudioPage } from './pages/ImageStudioPage';
 import { MediaPage } from './pages/MediaPage';
 import { OrganizationsPage } from './pages/OrganizationsPage';
 import { PublishingPage } from './pages/PublishingPage';
@@ -21,6 +22,7 @@ type Page =
   | 'social'
   | 'video'
   | 'content'
+  | 'image'
   | 'publishing'
   | 'calendar'
   | 'system';
@@ -28,11 +30,12 @@ type Page =
 const navigation: { id: Page; label: string }[] = [
   { id: 'dashboard', label: 'Tableau de bord' },
   { id: 'organizations', label: 'Organisations' },
-  { id: 'brands', label: 'Marques' },
+  { id: 'brands', label: 'Marques et Brand Kit' },
   { id: 'media', label: 'Médiathèque' },
   { id: 'social', label: 'Comptes sociaux' },
   { id: 'video', label: 'AI Video Studio' },
   { id: 'content', label: 'AI Content Studio' },
+  { id: 'image', label: 'AI Image Studio' },
   { id: 'publishing', label: 'Centre de publication' },
   { id: 'calendar', label: 'Calendrier éditorial' },
   { id: 'system', label: 'État du système' },
@@ -150,7 +153,7 @@ export function App() {
       <aside className="border-b border-border bg-surface lg:border-b-0 lg:border-r">
         <div className="flex h-full flex-col gap-6 p-5">
           <div>
-            <p className="text-xs font-medium text-accent">Phase 6 · Publication</p>
+            <p className="text-xs font-medium text-accent">Phase 7 · Création visuelle</p>
             <h1 className="mt-1 text-lg font-semibold tracking-tight">AI Social Studio</h1>
           </div>
 
@@ -228,6 +231,7 @@ export function App() {
           {page === 'social' && <SocialAccountsPage />}
           {page === 'video' && <VideoStudioPage />}
           {page === 'content' && <ContentStudioPage />}
+          {page === 'image' && <ImageStudioPage />}
           {page === 'publishing' && <PublishingPage />}
           {page === 'calendar' && <CalendarPage />}
           {page === 'system' && <SystemPage />}

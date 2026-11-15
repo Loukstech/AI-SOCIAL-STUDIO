@@ -87,25 +87,7 @@ export const addMemberSchema = z.object({
 });
 export type AddMemberInput = z.infer<typeof addMemberSchema>;
 
-// --- Marques ---
-
-export const createBrandSchema = z.object({
-  name: z.string().trim().min(2).max(120),
-  description: z.string().trim().max(1000).optional(),
-  primaryColor: z
-    .string()
-    .regex(/^#[0-9a-fA-F]{6}$/, 'Couleur hexadécimale attendue (#RRGGBB)')
-    .optional(),
-  toneOfVoice: z.string().trim().max(300).optional(),
-});
-export type CreateBrandInput = z.infer<typeof createBrandSchema>;
-
-export const brandSchema = createBrandSchema.extend({
-  id: z.string(),
-  organizationId: z.string(),
-  createdAt: z.string(),
-});
-export type Brand = z.infer<typeof brandSchema>;
+// Les schémas de marque et de Brand Kit vivent dans `brand.ts` (voir §8).
 
 // --- Médiathèque (métadonnées ; le fichier binaire arrive avec le stockage objet) ---
 
@@ -145,6 +127,7 @@ export const dashboardStatsSchema = z.object({
   contentProjects: z.number(),
   publications: z.number(),
   scheduledPublications: z.number(),
+  imageProjects: z.number(),
   recentActivity: z.array(
     z.object({
       id: z.string(),

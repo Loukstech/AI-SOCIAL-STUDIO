@@ -148,6 +148,7 @@ model Organization {
   videoProjects   VideoProject[]
   contentProjects ContentProject[]
   publications    Publication[]
+  imageProjects   ImageProject[]
 
   @@index([deletedAt])
 }
@@ -165,22 +166,41 @@ model Member {
   @@index([organizationId])
 }
 
+/// Marque et son Brand Kit (§8). Les logos sont référencés par identifiant de
+/// média : le fichier d'origine n'est jamais modifié ni dupliqué.
 model Brand {
-  id              String           @id @default(uuid())
-  organizationId  String
-  name            String
-  description     String?
-  primaryColor    String?
-  toneOfVoice     String?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  deletedAt       DateTime?
-  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  media           MediaAsset[]
-  socialAccounts  SocialAccount[]
-  videoProjects   VideoProject[]
-  contentProjects ContentProject[]
-  publications    Publication[]
+  id                    String           @id @default(uuid())
+  organizationId        String
+  name                  String
+  description           String?
+  primaryColor          String?
+  toneOfVoice           String?
+  /// Palette complète, du fond à l'accent. `primaryColor` reste la couleur
+  /// d'entrée historique ; `palette` la complète sans la remplacer.
+  palette               String[]         @default([])
+  logoPrimaryId         String?
+  logoSecondaryId       String?
+  headingFont           String?
+  bodyFont              String?
+  slogan                String?
+  website               String?
+  contactEmail          String?
+  contactPhone          String?
+  /// [{ platform, url }] — liens des réseaux de la marque.
+  socialLinks           Json?
+  referenceImageIds     String[]         @default([])
+  /// Consignes éditoriales libres, appliquées à la génération.
+  editorialInstructions String?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+  deletedAt             DateTime?
+  organization          Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  media                 MediaAsset[]
+  socialAccounts        SocialAccount[]
+  videoProjects         VideoProject[]
+  contentProjects       ContentProject[]
+  publications          Publication[]
+  imageProjects         ImageProject[]
 
   @@unique([organizationId, name])
   @@index([organizationId])
@@ -510,4 +530,67 @@ model PublicationEvent {
   publication   Publication        @relation(fields: [publicationId], references: [id], onDelete: Cascade)
 
   @@index([publicationId, createdAt])
+}
+
+// --- Phase 7 : AI Image Studio et Brand Kit (§7, §8) ---
+
+/// Formats prédéfinis du cahier des charges. `CUSTOM` exige des dimensions
+/// explicites, bornées par le service.
+enum ImageFormat {
+  SQUARE
+  PORTRAIT_4_5
+  STORY_9_16
+  LANDSCAPE_16_9
+  CUSTOM
+}
+
+enum ImageStyle {
+  EDITORIAL
+  BOLD
+  MINIMAL
+  GRADIENT
+}
+
+/// Visuel généré. La source SVG est stockée telle quelle : elle est
+/// reproductible, ses textes restent modifiables, et elle ne dépend d'aucun
+/// service externe. Le logo référencé n'est jamais copié ni altéré.
+model ImageProject {
+  id                String          @id @default(uuid())
+  organizationId    String
+  brandId           String?
+  createdById       String?
+  title             String?
+  /// Consignes de composition saisies par l'utilisateur.
+  prompt            String
+  format            ImageFormat     @default(SQUARE)
+  width             Int
+  height            Int
+  style             ImageStyle      @default(EDITORIAL)
+  /// Traçabilité de la génération (§7) : moteur, version, graine.
+  provider          String          @default("svg")
+  model             String          @default("layout-v1")
+  seed              Int
+  /// Réseau visé : sert à refuser un format incompatible (§8).
+  platform          SocialPlatform?
+  /// Instantané de la palette réellement appliquée.
+  palette           String[]        @default([])
+  logoMediaId       String?
+  referenceMediaIds String[]        @default([])
+  /// Couches de texte, corrigeables indépendamment.
+  headline          String?
+  subheadline       String?
+  callToAction      String?
+  badge             String?
+  svg               String
+  /// Débordements et écarts détectés au rendu.
+  warnings          String[]        @default([])
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  deletedAt         DateTime?
+  organization      Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  brand             Brand?          @relation(fields: [brandId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([brandId])
+  @@index([deletedAt])
 }

@@ -12,6 +12,8 @@ import { OrganizationsController } from './organizations.controller.js';
 import { SocialAccountsController } from './social-accounts.controller.js';
 import { ContentController, ContentGenerationController } from '../content/content.controller.js';
 import { ContentService } from '../content/content.service.js';
+import { ImageProjectsController } from '../image/image.controller.js';
+import { ImageService } from '../image/image.service.js';
 import { CalendarController } from '../publishing/calendar.controller.js';
 import { PublicationsController } from '../publishing/publications.controller.js';
 import { PublicationsService } from '../publishing/publications.service.js';
@@ -33,6 +35,7 @@ import { VideoProjectsController } from '../video/video-projects.controller.js';
     ContentController,
     PublicationsController,
     CalendarController,
+    ImageProjectsController,
     DashboardController,
   ],
   providers: [
@@ -44,6 +47,7 @@ import { VideoProjectsController } from '../video/video-projects.controller.js';
     ContentService,
     PublicationsService,
     PublishingScheduler,
+    ImageService,
   ],
   exports: [AuthGuard],
 })

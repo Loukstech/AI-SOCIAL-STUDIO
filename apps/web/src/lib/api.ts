@@ -9,6 +9,8 @@ import {
   createdInvitationSchema,
   dashboardStatsSchema,
   healthResponseSchema,
+  imageProjectDetailSchema,
+  imageProjectSchema,
   invitationSchema,
   mediaAssetSchema,
   memberSchema,
@@ -35,6 +37,7 @@ import {
   type ContentProject,
   type ContentProjectDetail,
   type CreateBrandInput,
+  type CreateImageProjectInput,
   type CreateInvitationInput,
   type CreateMediaInput,
   type CreateOrganizationInput,
@@ -45,6 +48,8 @@ import {
   type DuplicatePublicationInput,
   type GenerateContentInput,
   type HealthResponse,
+  type ImageProject,
+  type ImageProjectDetail,
   type Invitation,
   type LoginInput,
   type MediaAsset,
@@ -65,7 +70,9 @@ import {
   type SubtitleFormat,
   type SubtitleStyle,
   type SubtitleTrack,
+  type UpdateBrandInput,
   type UpdateClipInput,
+  type UpdateImageProjectInput,
   type UpdatePublicationInput,
   type UpdateVariantInput,
   type UpdateSocialAccountInput,
@@ -187,8 +194,29 @@ export const api = {
   brands: {
     list: (): Promise<Brand[]> => request('/brands', z.array(brandSchema)),
     create: (body: CreateBrandInput): Promise<Brand> => post('/brands', brandSchema, body),
+    update: (id: string, body: UpdateBrandInput): Promise<Brand> =>
+      request(`/brands/${id}`, brandSchema, { method: 'PATCH', body: JSON.stringify(body) }),
     remove: (id: string): Promise<unknown> =>
       request(`/brands/${id}`, z.unknown(), { method: 'DELETE' }),
+  },
+
+  image: {
+    list: (): Promise<ImageProject[]> => request('/image-projects', z.array(imageProjectSchema)),
+    detail: (id: string): Promise<ImageProjectDetail> =>
+      request(`/image-projects/${id}`, imageProjectDetailSchema),
+    create: (body: CreateImageProjectInput): Promise<ImageProjectDetail> =>
+      post('/image-projects', imageProjectDetailSchema, body),
+    update: (id: string, body: UpdateImageProjectInput): Promise<ImageProjectDetail> =>
+      request(`/image-projects/${id}`, imageProjectDetailSchema, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+    rerender: (id: string): Promise<ImageProjectDetail> =>
+      post(`/image-projects/${id}/rerender`, imageProjectDetailSchema, {}),
+    remove: (id: string): Promise<unknown> =>
+      request(`/image-projects/${id}`, z.unknown(), { method: 'DELETE' }),
+    /** URL de téléchargement direct du SVG. */
+    downloadUrl: (id: string): string => `${API_URL}/api/v1/image-projects/${id}/download`,
   },
 
   media: {

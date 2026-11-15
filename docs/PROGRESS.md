@@ -168,3 +168,26 @@ Détail : [PHASE6.md](PHASE6.md).
 ### Prochaine étape
 
 Phase 7 — AI Image Studio et Brand Kit (§7, §8), ou branchement d'un transport de publication réel (`PUBLISH_WEBHOOK_URL` ou adaptateurs OAuth).
+
+---
+
+## Phase 7 — AI Image Studio et Brand Kit (15 novembre 2026)
+
+**Statut : TERMINÉE.**
+
+- Composeur SVG déterministe (§7) : un vrai visuel vectoriel, reproductible à partir d'une graine, dont chaque texte reste un calque `<text>` éditable — la correction ne demande pas de régénérer l'image.
+- Quatre formats normalisés (Carré 1080×1080, Portrait 4:5, Story 9:16, Paysage 16:9) plus un format personnalisé borné à 256–4096 px, et quatre styles (Éditorial, Affirmé, Minimal, Dégradé).
+- Quatre calques de texte (titre, sous-titre, bouton, pastille), palette de 8 couleurs, logo référencé par identifiant de média, image de référence en fond voilé.
+- Avertissements explicites au lieu de rendus silencieusement dégradés : contraste limite, logo absent, titre ou sous-titre tronqué, média sans URL exploitable.
+- Refus explicite d'un format incompatible avec la plateforme visée (`400` et liste des formats acceptés), application du §8 « ne pas imposer d'éléments incompatibles ».
+- Brand Kit complet (§8) : logos principal et secondaire, palette, polices de titre et de texte, slogan, site, e-mail, téléphone, 8 liens sociaux, 12 images de référence, consignes éditoriales. Mise à jour partielle où `null` vide un champ, corps vide refusé, propriété des médias vérifiée.
+- Échappement XML systématique ; un titre contenant `<script>` est rendu inerte dans le SVG.
+- Interface : page « AI Image Studio » (brief, aperçu en direct, correction des textes, nouveau décor, téléchargement, galerie), page « Marques et Brand Kit » refondue, compteur « Visuels générés » sur le tableau de bord.
+- Modèle `ImageProject` et extension de `Brand` ; migration `20261115230000_phase7_image_brandkit` appliquée sur Neon (8 migrations au total).
+- Qualité : 172 tests unitaires (dont 57 nouveaux sur le composeur et les formats), `pnpm test:phase7` (87 vérifications E2E), lint/typecheck/build/format verts.
+
+Détail : [PHASE7.md](PHASE7.md).
+
+### Prochaine étape
+
+Export PNG des visuels (moteur raster) et branchement d'un transport de publication réel — ou ouverture des phases restantes du cahier des charges (analytics, collaboration temps réel).
