@@ -6,20 +6,25 @@
  *   API_URL=http://localhost:3000 node scripts/smoke-phase1.mjs
  *   SMOKE_EMAIL=... SMOKE_PASSWORD=... node scripts/smoke-phase1.mjs
  *
- * Le compte de test est réutilisé (inscription, puis connexion les fois suivantes)
- * et les marques / médias créés sont supprimés à la fin : le test est rejouable.
- * Les données sont isolées dans l'organisation du compte de test.
+ * Par défaut, chaque exécution crée un compte jetable avec des identifiants
+ * aléatoires : aucun mot de passe de test n'est donc publié dans le dépôt.
+ * SMOKE_EMAIL / SMOKE_PASSWORD permettent de réutiliser un compte existant.
+ * Les marques et médias créés sont supprimés en fin de course ; les données
+ * restent isolées dans l'organisation du compte de test.
  */
 import assert from 'node:assert/strict';
+import { randomBytes } from 'node:crypto';
 
 const API_URL = (process.env.API_URL ?? 'https://ai-social-studio-api.onrender.com').replace(
   /\/$/,
   '',
 );
-const EMAIL = (process.env.SMOKE_EMAIL ?? 'phase1-smoke@ai-social-studio.test').toLowerCase();
-const PASSWORD = process.env.SMOKE_PASSWORD ?? 'Smoke-Phase1-2026!';
-const TIMEOUT = Number(process.env.TIMEOUT ?? 45_000);
 const RUN_ID = `${Date.now()}`;
+const EMAIL = (
+  process.env.SMOKE_EMAIL ?? `phase1-smoke-${RUN_ID}@ai-social-studio.test`
+).toLowerCase();
+const PASSWORD = process.env.SMOKE_PASSWORD ?? randomBytes(24).toString('base64url');
+const TIMEOUT = Number(process.env.TIMEOUT ?? 45_000);
 
 let checks = 0;
 function ok(label, condition, detail = '') {
