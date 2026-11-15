@@ -1,4 +1,4 @@
-# État du déploiement (Phase 8)
+# État du déploiement (Phase 9)
 
 ## Services en ligne
 
@@ -52,6 +52,24 @@ Publication (Phase 6) — toutes optionnelles :
 | `PUBLISH_WEBHOOK_TIMEOUT_MS` | `8000` | Délai maximal d'un envoi                                       |
 
 Sans `PUBLISH_WEBHOOK_URL`, une tentative de publication échoue avec `NOT_CONFIGURED` et l'interface propose l'export ou la confirmation manuelle. C'est le comportement voulu : aucune publication n'est simulée.
+
+Connexion des comptes sociaux (Phase 9) — toutes optionnelles, mais sans elles aucune connexion n'est possible :
+
+| Variable                                          | Défaut  | Rôle                                                          |
+| ------------------------------------------------- | ------- | ------------------------------------------------------------- |
+| `API_PUBLIC_URL`                                  | —       | Base publique de l'API, pour construire l'URL de retour OAuth |
+| `OAUTH_REDIRECT_URL`                              | —       | Surcharge explicite de l'URL de retour                        |
+| `OAUTH_HTTP_TIMEOUT_MS`                           | `10000` | Délai des appels au fournisseur                               |
+| `META_CLIENT_ID` / `META_CLIENT_SECRET`           | —       | Facebook, Instagram, Threads                                  |
+| `LINKEDIN_CLIENT_ID` / `LINKEDIN_CLIENT_SECRET`   | —       | LinkedIn                                                      |
+| `X_CLIENT_ID` / `X_CLIENT_SECRET`                 | —       | X                                                             |
+| `TIKTOK_CLIENT_ID` / `TIKTOK_CLIENT_SECRET`       | —       | TikTok                                                        |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`       | —       | YouTube                                                       |
+| `PINTEREST_CLIENT_ID` / `PINTEREST_CLIENT_SECRET` | —       | Pinterest                                                     |
+
+L'URL de retour à déclarer chez chaque fournisseur est `{API_PUBLIC_URL}/api/v1/social-accounts/oauth/callback`. Sur Render, `API_PUBLIC_URL=https://ai-social-studio-api.onrender.com`.
+
+Sans identifiants, `POST /social-accounts/connect` répond `409` en nommant les variables manquantes pour la plateforme demandée. C'est le comportement voulu : aucune connexion n'est simulée.
 
 > ⚠️ **Piège Render :** `PUT /v1/services/{id}/env-vars` **remplace** l'intégralité de la liste. Pour ajouter une seule variable, utiliser `PUT /v1/services/{id}/env-vars/{key}` ou renvoyer la liste complète. Une mise à jour partielle vide les autres variables : le déploiement suivant construit correctement mais échoue au health check (`update_failed`), car `parseEnv` exige `DATABASE_URL` et `REDIS_URL` en production.
 

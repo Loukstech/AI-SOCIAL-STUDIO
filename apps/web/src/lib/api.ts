@@ -4,6 +4,8 @@ import {
   brandSchema,
   calendarResponseSchema,
   clipSuggestionSchema,
+  connectResultSchema,
+  connectionHealthSchema,
   contentProjectDetailSchema,
   contentProjectSchema,
   createdInvitationSchema,
@@ -35,6 +37,9 @@ import {
   type CancelPublicationInput,
   type ClipSuggestion,
   type ConfirmPublicationInput,
+  type ConnectRequestInput,
+  type ConnectResult,
+  type ConnectionHealth,
   type ContentProject,
   type ContentProjectDetail,
   type CreateBrandInput,
@@ -243,6 +248,15 @@ export const api = {
       }),
     sync: (id: string): Promise<SocialAccount> =>
       post(`/social-accounts/${id}/sync`, socialAccountSchema, {}),
+    /** Ouvre une connexion OAuth : renvoie l'URL d'autorisation à visiter. */
+    connect: (body: ConnectRequestInput): Promise<ConnectResult> =>
+      post('/social-accounts/connect', connectResultSchema, body),
+    /** Renouvelle une autorisation à partir du jeton de rafraîchissement. */
+    refresh: (id: string): Promise<SocialAccount> =>
+      post(`/social-accounts/${id}/refresh`, socialAccountSchema, {}),
+    /** Santé des connexions : état, expiration, permissions, blocages. */
+    health: (): Promise<ConnectionHealth[]> =>
+      request('/social-accounts/health', z.array(connectionHealthSchema)),
     remove: (id: string): Promise<unknown> =>
       request(`/social-accounts/${id}`, z.unknown(), { method: 'DELETE' }),
   },

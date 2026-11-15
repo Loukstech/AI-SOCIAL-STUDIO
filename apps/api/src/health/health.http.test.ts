@@ -23,7 +23,9 @@ describe('GET /api/v1/health', () => {
   });
 
   afterAll(async () => {
-    await app.close();
+    // Si `beforeAll` a échoué, `app` est indéfini : ne pas masquer l'erreur
+    // réelle du démarrage par une erreur de fermeture.
+    if (app) await app.close();
   });
 
   it('signale les dépendances non configurées sans prétendre être ok', async () => {

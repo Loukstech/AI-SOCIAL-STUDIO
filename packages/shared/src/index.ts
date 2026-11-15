@@ -7,3 +7,4 @@ export * from './video.js';
 export * from './content.js';
 export * from './publishing.js';
 export * from './image.js';
+export * from './oauth.js';

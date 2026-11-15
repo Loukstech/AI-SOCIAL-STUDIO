@@ -15,10 +15,14 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
+  connectRequestSchema,
   createSocialAccountSchema,
   socialAccountStatusSchema,
   socialPlatformSchema,
   updateSocialAccountSchema,
+  type ConnectRequestInput,
+  type ConnectResult,
+  type ConnectionHealth,
   type CreateSocialAccountInput,
   type SocialAccount,
   type UpdateSocialAccountInput,
@@ -27,7 +31,8 @@ import { Db, ZodPipe } from '../common/validation.js';
 import { AuthGuard, MinRole } from '../auth/auth.guard.js';
 import type { AuthedRequest } from '../auth/auth.types.js';
 import { ENV, type Env } from '../config/env.js';
-import { decryptSecret, encryptSecret } from '../auth/crypto.js';
+import { encryptSecret } from '../auth/crypto.js';
+import { OAuthService } from '../social/oauth.service.js';
 
 @Controller('social-accounts')
 @UseGuards(AuthGuard)
@@ -35,6 +40,7 @@ export class SocialAccountsController {
   constructor(
     @Inject(Db) private readonly db: Db,
     @Inject(ENV) private readonly env: Env,
+    @Inject(OAuthService) private readonly oauth: OAuthService,
   ) {}
 
   @Get()
@@ -85,6 +91,55 @@ export class SocialAccountsController {
     }
   }
 
+  /**
+   * Ouverture d'une connexion OAuth (§9.1).
+   *
+   * Renvoie l'URL d'autorisation du fournisseur, à visiter dans le navigateur.
+   * Quand aucun identifiant d'application n'est configuré, la réponse est un
+   * 409 qui nomme les variables d'environnement manquantes : la connexion n'est
+   * jamais simulée pour faire joli.
+   */
+  @Post('connect')
+  @HttpCode(200)
+  @MinRole('ADMIN')
+  async connect(
+    @Req() request: AuthedRequest,
+    @Body(new ZodPipe(connectRequestSchema)) body: ConnectRequestInput,
+  ): Promise<ConnectResult> {
+    const organizationId = this.org(request);
+    const result = await this.oauth.authorize(organizationId, body);
+    // Un compte existant réautorise : l'événement est rattaché à sa ligne.
+    // Pour une nouvelle connexion, l'audit part à l'arrivée du callback.
+    if (body.socialAccountId) {
+      await this.audit(
+        request,
+        organizationId,
+        'social_account.connect_started',
+        body.socialAccountId,
+        { platform: result.platform },
+      );
+    }
+    return result;
+  }
+
+  /**
+   * Santé des connexions (§9.2 / §9.3) : état, expiration, permissions
+   * accordées, dernière panne et identifiants d'application manquants.
+   */
+  @Get('health')
+  @MinRole('VIEWER')
+  async health(@Req() request: AuthedRequest): Promise<ConnectionHealth[]> {
+    return this.oauth.health(this.org(request));
+  }
+
+  /** Renouvellement explicite d'une autorisation (§9.3). */
+  @Post(':id/refresh')
+  @HttpCode(200)
+  @MinRole('ADMIN')
+  async refresh(@Req() request: AuthedRequest, @Param('id') id: string): Promise<SocialAccount> {
+    return this.oauth.refresh(this.org(request), id, request.auth!.userId);
+  }
+
   @Patch(':id')
   @MinRole('ADMIN')
   async update(
@@ -115,33 +170,18 @@ export class SocialAccountsController {
   }
 
   /**
-   * Synchronisation : rafraîchit l'horodatage et vérifie que le jeton est
-   * déchiffrable. L'appel réel aux API des plateformes arrive avec les
-   * identifiants d'application OAuth (Meta, TikTok, LinkedIn, Google…).
+   * Synchronisation : relit le profil auprès de la plateforme.
+   *
+   * Un échec n'est pas une exception : il est **enregistré sur le compte**
+   * (`status: ERROR`, `lastError`, `lastErrorAt`) et renvoyé avec lui, pour que
+   * l'interface guide la reconnexion au lieu d'afficher un compte faussement
+   * sain.
    */
   @Post(':id/sync')
   @HttpCode(200)
   @MinRole('EDITOR')
   async sync(@Req() request: AuthedRequest, @Param('id') id: string): Promise<SocialAccount> {
-    const organizationId = this.org(request);
-    const existing = await this.find(organizationId, id);
-    if (!existing.accessToken) {
-      throw new BadRequestException(
-        'Aucun jeton d’accès enregistré : reconnectez le compte avant de synchroniser',
-      );
-    }
-    const readable = decryptSecret(existing.accessToken, this.secret()) !== null;
-    const account = await this.db.client.socialAccount.update({
-      where: { id: existing.id },
-      data: {
-        lastSyncedAt: new Date(),
-        status: readable ? 'CONNECTED' : 'ERROR',
-      },
-    });
-    await this.audit(request, organizationId, 'social_account.synced', account.id, {
-      readable,
-    });
-    return toSocialAccount(account);
+    return this.oauth.sync(this.org(request), id, request.auth!.userId);
   }
 
   @Delete(':id')
@@ -193,7 +233,7 @@ export class SocialAccountsController {
     request: AuthedRequest,
     organizationId: string,
     action: string,
-    targetId: string,
+    targetId: string | null,
     metadata: Record<string, string | number | boolean> | null,
   ): Promise<void> {
     await this.db.client.auditLog.create({
@@ -225,6 +265,8 @@ function toSocialAccount(row: {
   scopes: string[];
   tokenExpiresAt: Date | null;
   lastSyncedAt: Date | null;
+  lastError: string | null;
+  lastErrorAt: Date | null;
   accessToken: string | null;
   refreshToken: string | null;
   createdAt: Date;
@@ -242,6 +284,8 @@ function toSocialAccount(row: {
     scopes: row.scopes,
     tokenExpiresAt: row.tokenExpiresAt?.toISOString() ?? null,
     lastSyncedAt: row.lastSyncedAt?.toISOString() ?? null,
+    lastError: row.lastError,
+    lastErrorAt: row.lastErrorAt?.toISOString() ?? null,
     hasAccessToken: Boolean(row.accessToken),
     hasRefreshToken: Boolean(row.refreshToken),
     createdAt: row.createdAt.toISOString(),

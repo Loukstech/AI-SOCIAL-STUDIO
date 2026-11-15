@@ -374,6 +374,24 @@ export const publishingReadinessSchema = z.object({
   ready: z.boolean(),
   kind: z.enum(['WEBHOOK', 'NONE']),
   message: z.string(),
+  /**
+   * Détail par plateforme (§9.4) : ce qui est accepté, ce qui bloque l'envoi,
+   * et les variables à renseigner. Ne jamais supposer que tous les réseaux se
+   * comportent pareil.
+   */
+  platforms: z.array(
+    z.object({
+      platform: socialPlatformSchema,
+      label: z.string(),
+      transport: z.enum(['WEBHOOK', 'NONE']),
+      canPublish: z.boolean(),
+      supports: z.array(postTypeSchema),
+      fallback: z.enum(['EXPORT', 'MANUAL', 'DRAFT']),
+      scopes: z.array(z.string()),
+      missingCredentials: z.array(z.string()),
+      note: z.string(),
+    }),
+  ),
 });
 export type PublishingReadiness = z.infer<typeof publishingReadinessSchema>;
 

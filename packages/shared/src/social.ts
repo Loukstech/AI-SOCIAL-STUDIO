@@ -72,6 +72,9 @@ export const socialAccountSchema = z.object({
   scopes: z.array(z.string()),
   tokenExpiresAt: z.string().nullable(),
   lastSyncedAt: z.string().nullable(),
+  /** Dernière panne connue (§9.3) : message et horodatage, effacés au succès. */
+  lastError: z.string().nullable(),
+  lastErrorAt: z.string().nullable(),
   hasAccessToken: z.boolean(),
   hasRefreshToken: z.boolean(),
   createdAt: z.string(),

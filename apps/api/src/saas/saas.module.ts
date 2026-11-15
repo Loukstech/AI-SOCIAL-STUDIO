@@ -18,6 +18,8 @@ import { CalendarController } from '../publishing/calendar.controller.js';
 import { PublicationsController } from '../publishing/publications.controller.js';
 import { PublicationsService } from '../publishing/publications.service.js';
 import { PublishingScheduler } from '../publishing/scheduler.service.js';
+import { OAuthCallbackController } from '../social/oauth-callback.controller.js';
+import { OAuthService } from '../social/oauth.service.js';
 import { VideoPipelineService } from '../video/video-pipeline.service.js';
 import { VideoProjectsController } from '../video/video-projects.controller.js';
 
@@ -30,6 +32,7 @@ import { VideoProjectsController } from '../video/video-projects.controller.js';
     BrandsController,
     MediaController,
     SocialAccountsController,
+    OAuthCallbackController,
     VideoProjectsController,
     ContentGenerationController,
     ContentController,
@@ -48,6 +51,7 @@ import { VideoProjectsController } from '../video/video-projects.controller.js';
     PublicationsService,
     PublishingScheduler,
     ImageService,
+    OAuthService,
   ],
   exports: [AuthGuard],
 })

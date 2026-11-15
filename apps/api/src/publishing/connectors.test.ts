@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { socialPlatforms } from '@ass/shared';
 import { parseEnv } from '../config/env.js';
 import {
+  createConnector,
   createWebhookConnector,
+  describePlatforms,
   describeReadiness,
   inertConnector,
   resolveConnector,
@@ -157,5 +160,137 @@ describe('transport webhook', () => {
     const result = await createWebhookConnector(withoutUrl).publish(post);
     expect(result.ok).toBe(false);
     expect(result.error?.code).toBe('NOT_CONFIGURED');
+  });
+});
+
+describe('adaptateur de plateforme (§9.4)', () => {
+  const env = parseEnv({ PUBLISH_WEBHOOK_URL: 'https://hook.example/publish' });
+
+  it('déclare les capacités réelles de la plateforme', async () => {
+    const capabilities = await createConnector(env, 'INSTAGRAM').getCapabilities();
+    expect(capabilities.supports).toContain('CAROUSEL');
+    expect(capabilities.supports).not.toContain('TEXT');
+    expect(capabilities.requiresMedia).toContain('IMAGE');
+    expect(capabilities.maxMedia).toBe(10);
+    expect(capabilities.maxChars).toBe(2_200);
+    expect(capabilities.fallback).toBe('MANUAL');
+  });
+
+  it('ne suppose pas que les réseaux se ressemblent', async () => {
+    const tiktok = await createConnector(env, 'TIKTOK').getCapabilities();
+    const linkedin = await createConnector(env, 'LINKEDIN').getCapabilities();
+    expect(tiktok.supports).not.toEqual(linkedin.supports);
+    expect(tiktok.maxMedia).toBe(1);
+    expect(linkedin.maxMedia).toBe(9);
+  });
+
+  it('signale les identifiants manquants dans les capacités', async () => {
+    const capabilities = await createConnector(env, 'YOUTUBE').getCapabilities();
+    expect(capabilities.missingCredentials).toEqual(['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET']);
+    expect(capabilities.canPublish).toBe(false);
+  });
+
+  it('déclare l’envoi possible quand tout est configuré', async () => {
+    const configured = parseEnv({
+      PUBLISH_WEBHOOK_URL: 'https://hook.example/publish',
+      GOOGLE_CLIENT_ID: 'id-de-test',
+      GOOGLE_CLIENT_SECRET: 'secret-de-test',
+    });
+    const capabilities = await createConnector(configured, 'YOUTUBE').getCapabilities();
+    expect(capabilities.missingCredentials).toEqual([]);
+    expect(capabilities.canPublish).toBe(true);
+    expect(capabilities.operations).toContain('publish');
+  });
+
+  it('ne liste jamais publish sans transport', async () => {
+    const capabilities = await createConnector(parseEnv({}), 'LINKEDIN').getCapabilities();
+    expect(capabilities.operations).not.toContain('publish');
+    expect(capabilities.operations).toContain('validatePost');
+    expect(capabilities.operations).toContain('getCapabilities');
+  });
+
+  it('valide un texte conforme', async () => {
+    const result = await createConnector(env, 'LINKEDIN').validatePost(post);
+    expect(result.ok).toBe(true);
+    expect(result.errors).toEqual([]);
+    expect(result.charCount).toBe(post.text.length);
+    expect(result.charLimit).toBe(3_000);
+  });
+
+  it('refuse un texte seul sur Instagram, qui exige un média', async () => {
+    const result = await createConnector(env, 'INSTAGRAM').validatePost({
+      ...post,
+      platform: 'INSTAGRAM',
+      postType: 'IMAGE',
+    });
+    expect(result.ok).toBe(false);
+    expect(result.errors.join(' ')).toMatch(/média/i);
+  });
+
+  it('refuse un format que la plateforme n’accepte pas', async () => {
+    const result = await createConnector(env, 'TIKTOK').validatePost({
+      ...post,
+      platform: 'TIKTOK',
+      postType: 'TEXT',
+    });
+    expect(result.ok).toBe(false);
+    expect(result.errors.join(' ')).toMatch(/n’accepte pas le format TEXT/);
+  });
+
+  it('délègue l’envoi au transport configuré', async () => {
+    stubFetch(async () => new Response(JSON.stringify({ id: 'ext-9' }), { status: 200 }));
+    const result = await createConnector(env, 'LINKEDIN').publish(post);
+    expect(result.ok).toBe(true);
+    expect(result.externalId).toBe('ext-9');
+  });
+
+  it('échoue honnêtement sans transport', async () => {
+    const result = await createConnector(parseEnv({}), 'LINKEDIN').publish(post);
+    expect(result.ok).toBe(false);
+    expect(result.error?.code).toBe('NOT_CONFIGURED');
+  });
+
+  it('ne prétend pas connaître l’état distant d’une publication', async () => {
+    const status = await createConnector(env, 'LINKEDIN').getPublishStatus('ext-9');
+    expect(status.ok).toBe(false);
+    expect(status.state).toBe('UNKNOWN');
+    expect(status.message).toMatch(/ne permet pas de relire/i);
+  });
+
+  it('ne fabrique aucune statistique', async () => {
+    const analytics = await createConnector(env, 'LINKEDIN').getAnalytics('ext-9');
+    expect(analytics.ok).toBe(false);
+    expect(analytics.metrics).toBeNull();
+    expect(analytics.message).toMatch(/Aucune statistique/i);
+  });
+
+  it('renvoie la connexion au flux OAuth plutôt que de la simuler', async () => {
+    const connector = createConnector(env, 'LINKEDIN');
+    const connect = await connector.connect();
+    expect(connect.ok).toBe(false);
+    expect(connect.code).toBe('NOT_SUPPORTED');
+    expect(connect.message).toMatch(/POST \/social-accounts\/connect/);
+
+    const refresh = await connector.refreshToken();
+    expect(refresh.code).toBe('NOT_SUPPORTED');
+    expect(refresh.message).toMatch(/refresh/);
+
+    expect(await connector.getAccountInfo()).toBeNull();
+  });
+
+  it('explique qu’une révocation exige les identifiants du fournisseur', async () => {
+    const withoutCredentials = await createConnector(env, 'LINKEDIN').disconnect();
+    expect(withoutCredentials.code).toBe('NOT_CONFIGURED');
+    expect(withoutCredentials.message).toMatch(/LINKEDIN_CLIENT_ID/);
+  });
+
+  it('décrit chaque plateforme, sans en oublier', () => {
+    const rows = describePlatforms(env);
+    expect(rows.map((row) => row.platform)).toEqual([...socialPlatforms]);
+    for (const row of rows) {
+      expect(row.transport).toBe('WEBHOOK');
+      expect(row.canPublish).toBe(false);
+      expect(row.missingCredentials.length).toBeGreaterThan(0);
+    }
   });
 });

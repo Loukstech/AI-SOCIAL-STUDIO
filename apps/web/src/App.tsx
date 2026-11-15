@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { Organization, User } from '@ass/shared';
+import {
+  socialPlatformLabels,
+  type Organization,
+  type SocialPlatform,
+  type User,
+} from '@ass/shared';
 import { api, session, setActiveOrganization } from './lib/api';
 import { AuthPage } from './pages/AuthPage';
 import { BrandsPage } from './pages/BrandsPage';
@@ -41,13 +46,34 @@ const navigation: { id: Page; label: string }[] = [
   { id: 'system', label: 'État du système' },
 ];
 
+/**
+ * Résultat d'un retour OAuth, lu depuis l'URL.
+ *
+ * L'API redirige ici après l'autorisation du fournisseur : `connected` porte la
+ * plateforme, `error` le motif du refus. Aucun jeton ne transite par l'URL.
+ */
+function readOAuthReturn(): { page: Page; notice: string } | null {
+  const params = new URLSearchParams(window.location.search);
+  const connected = params.get('connected');
+  const failure = params.get('error');
+  if (!connected && !failure) return null;
+  if (connected) {
+    const label = socialPlatformLabels[connected as SocialPlatform] ?? connected;
+    return { page: 'social', notice: `Connexion ${label} établie.` };
+  }
+  return { page: 'social', notice: `Connexion interrompue : ${failure}` };
+}
+
 export function App() {
+  // Retour OAuth : l'API redirige ici avec `connected` ou `error`. Lu une seule
+  // fois au montage, avant tout état, pour ne rien poser dans un effet.
+  const [oauthReturn] = useState(readOAuthReturn);
   const [user, setUser] = useState<User | null>(null);
   const [checking, setChecking] = useState(Boolean(session.token));
-  const [page, setPage] = useState<Page>('dashboard');
+  const [page, setPage] = useState<Page>(() => oauthReturn?.page ?? 'dashboard');
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [activeOrg, setActiveOrg] = useState<string | null>(session.organizationId);
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState(oauthReturn?.notice ?? '');
 
   const refreshOrganizations = useCallback(async () => {
     try {
@@ -118,6 +144,13 @@ export function App() {
     };
   }, [user, refreshOrganizations]);
 
+  // Le résultat OAuth a été lu au montage : on nettoie l'URL pour qu'un
+  // rechargement ne rejoue pas le message.
+  useEffect(() => {
+    if (!oauthReturn) return;
+    window.history.replaceState({}, '', window.location.pathname);
+  }, [oauthReturn]);
+
   const onAuthenticated = useCallback(async () => {
     const me = await api.me().catch(() => null);
     setUser(me);
@@ -153,7 +186,7 @@ export function App() {
       <aside className="border-b border-border bg-surface lg:border-b-0 lg:border-r">
         <div className="flex h-full flex-col gap-6 p-5">
           <div>
-            <p className="text-xs font-medium text-accent">Phase 7 · Création visuelle</p>
+            <p className="text-xs font-medium text-accent">Phase 9 · Connexions sociales</p>
             <h1 className="mt-1 text-lg font-semibold tracking-tight">AI Social Studio</h1>
           </div>
 

@@ -47,6 +47,29 @@ const envSchema = z
     }),
     PUBLISH_WEBHOOK_SECRET: z.string().min(8).optional(),
     PUBLISH_WEBHOOK_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(8000),
+    // Base publique de l'API : sert à construire l'URL de retour OAuth.
+    API_PUBLIC_URL: optionalUrl.refine((v) => v === undefined || /^https?:\/\//.test(v), {
+      message: 'API_PUBLIC_URL doit être une URL http(s)',
+    }),
+    /** Surcharge explicite de l'URL de retour OAuth (sinon dérivée). */
+    OAUTH_REDIRECT_URL: optionalUrl.refine((v) => v === undefined || /^https?:\/\//.test(v), {
+      message: 'OAUTH_REDIRECT_URL doit être une URL http(s)',
+    }),
+    OAUTH_HTTP_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(10_000),
+    // Identifiants d'application OAuth (§9). Absents = connexion refusée avec
+    // la liste exacte des variables manquantes, jamais simulée.
+    META_CLIENT_ID: z.string().min(4).optional(),
+    META_CLIENT_SECRET: z.string().min(4).optional(),
+    LINKEDIN_CLIENT_ID: z.string().min(4).optional(),
+    LINKEDIN_CLIENT_SECRET: z.string().min(4).optional(),
+    X_CLIENT_ID: z.string().min(4).optional(),
+    X_CLIENT_SECRET: z.string().min(4).optional(),
+    TIKTOK_CLIENT_ID: z.string().min(4).optional(),
+    TIKTOK_CLIENT_SECRET: z.string().min(4).optional(),
+    GOOGLE_CLIENT_ID: z.string().min(4).optional(),
+    GOOGLE_CLIENT_SECRET: z.string().min(4).optional(),
+    PINTEREST_CLIENT_ID: z.string().min(4).optional(),
+    PINTEREST_CLIENT_SECRET: z.string().min(4).optional(),
   })
   .superRefine((env, ctx) => {
     // En développement, l'API démarre sans base ni Redis et le signale dans /health.

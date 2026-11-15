@@ -211,3 +211,29 @@ Détail : [PHASE8.md](PHASE8.md).
 ### Prochaine étape
 
 Export PNG côté serveur pour l'envoi automatisé, ou branchement d'un transport de publication réel (`PUBLISH_WEBHOOK_URL` ou adaptateurs OAuth).
+
+---
+
+## Phase 9 — Connexion des comptes sociaux (15 novembre 2026)
+
+**Statut : TERMINÉE.**
+
+- Cycle de vie OAuth complet (§9.1) : `POST /social-accounts/connect` construit l'URL d'autorisation du fournisseur, `GET /social-accounts/oauth/callback` (public, protégé par l'état signé) échange le code, lit le profil et enregistre les jetons chiffrés en AES-256-GCM. `POST /:id/refresh` renouvelle, `POST /:id/sync` relit le profil, `GET /health` expose l'état des connexions.
+- État OAuth sans table de session : signature HMAC-SHA256 comparée en temps constant, expiration à 10 minutes, **vérificateur PKCE chiffré** (il transite par le navigateur), type de plateforme revalidé à la lecture.
+- PKCE S256 conforme au RFC 7636 (vérifié contre le vecteur de test de l'annexe B), ajouté **uniquement** pour les plateformes qui l'exigent (LinkedIn, X, TikTok, Google) — `code_challenge_method` sans défi casserait Meta.
+- Registre des points d'entrée réels par fournisseur (autorisation, jeton, profil, documentation officielle) et permissions demandées par réseau.
+- Lecture des profils pilotée par des chemins déclarés (Facebook, Instagram, Threads, LinkedIn, X, TikTok, YouTube, Pinterest) ; un profil sans identifiant externe est refusé plutôt que rattaché au hasard.
+- Détection d'erreur (§9.3) : une synchronisation en échec **n'est pas une exception**, elle enregistre `status: ERROR`, `lastError`, `lastErrorAt` et se renvoie avec le compte ; six états distingués (`REVOKED`, `NO_TOKEN`, `EXPIRED`, `ERROR`, `EXPIRING`, `OK`) avec marche à suivre. Le renouvellement ne remplace jamais un jeton de rafraîchissement par une absence.
+- Interface commune des adaptateurs (§9.4) complétée : `connect`, `refreshToken`, `getAccountInfo`, `getCapabilities`, `validatePost`, `publish`, `getPublishStatus`, `getAnalytics`, `disconnect`. `getCapabilities` et `validatePost` sont réels ; les opérations hors de portée répondent `NOT_SUPPORTED` avec la route qui les fait vraiment, plutôt qu'un succès creux. La validation est désormais portée par l'adaptateur : l'envoi ne part plus avec une cible que la plateforme refuserait.
+- `/publications/readiness` expose les capacités **par plateforme** : formats acceptés, envoi possible, repli, variables manquantes.
+- Interface : état de chaque connexion avec compte à rebours lisible, permissions accordées, dernière panne datée, variables bloquantes, boutons Ouvrir / Reconnecter / Renouveler / Synchroniser / Déconnecter, tableau des huit plateformes, connexion manuelle repliée en second recours.
+- Modèle : `SocialAccount.lastError` / `lastErrorAt` ; migration `20261115250000_phase9_connection_health` appliquée sur Neon (10 migrations au total).
+- Qualité : 266 tests unitaires (79 nouveaux : 37 sur les briques OAuth pures, 27 sur le service avec transport simulé, 15 sur les adaptateurs), `pnpm test:phase9` (57 vérifications E2E), lint/typecheck/build/format verts.
+
+**Ce qui manque n'est pas du code, ce sont des identifiants.** Sans applications OAuth créées chez les fournisseurs, `connect` refuse avec la liste exacte des variables à renseigner — jamais de connexion simulée.
+
+Détail : [PHASE9.md](PHASE9.md).
+
+### Prochaine étape
+
+Créer les applications OAuth (Meta, LinkedIn, X, TikTok, Google, Pinterest), renseigner les douze variables, passer les revues de plateforme, puis écrire les adaptateurs d'envoi natifs — les jetons obtenus par ce flux sont précisément ce qu'il faut pour brancher `publish()` sur les API réelles.

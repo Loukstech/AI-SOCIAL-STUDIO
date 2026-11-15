@@ -35,7 +35,12 @@ import {
 import { Db } from '../common/validation.js';
 import { ENV, type Env } from '../config/env.js';
 import { checkPublication, checkTarget } from './capabilities.js';
-import { describeReadiness, resolveConnector, type SocialPost } from './connectors.js';
+import {
+  createConnector,
+  describePlatforms,
+  describeReadiness,
+  type SocialPost,
+} from './connectors.js';
 import { isKnownTimezone } from './timezone.js';
 
 /**
@@ -191,7 +196,7 @@ export class PublicationsService {
   }
 
   readiness() {
-    return describeReadiness(this.env);
+    return { ...describeReadiness(this.env), platforms: describePlatforms(this.env) };
   }
 
   /** Réponse du calendrier : entrées + fuseau de l'organisation (§11). */
@@ -722,7 +727,6 @@ export class PublicationsService {
 
     const current = row as unknown as PublicationRow;
     const postType = postTypeSchema.parse(current.postType);
-    const connector = resolveConnector(this.env);
 
     let published = 0;
     let failed = 0;
@@ -734,27 +738,7 @@ export class PublicationsService {
         continue;
       }
       const platform = socialPlatformSchema.parse(target.platform);
-      const check = checkTarget({
-        platform,
-        postType,
-        body: target.body,
-        title: target.title,
-        hashtags: target.hashtags,
-        mediaCount: current.mediaIds.length,
-      });
-
-      // Une règle de plateforme non respectée ne part pas : inutile d'appeler
-      // le réseau pour se faire refuser.
-      if (check.errors.length > 0) {
-        failed += 1;
-        firstError ??= check.errors[0] ?? 'Cible invalide';
-        await this.db.client.publicationTarget.update({
-          where: { id: target.id },
-          data: { status: 'FAILED', error: check.errors.join(' · ') },
-        });
-        continue;
-      }
-
+      const connector = createConnector(this.env, platform);
       const post: SocialPost = {
         platform,
         accountUsername: target.socialAccount.username,
@@ -763,6 +747,21 @@ export class PublicationsService {
         title: target.title,
         mediaIds: current.mediaIds,
       };
+
+      // La validation appartient à l'adaptateur de la plateforme (§9.4) : une
+      // règle non respectée ne part pas, inutile d'appeler le réseau pour se
+      // faire refuser.
+      const validation = await connector.validatePost(post);
+      if (!validation.ok) {
+        failed += 1;
+        firstError ??= validation.errors[0] ?? 'Cible invalide';
+        await this.db.client.publicationTarget.update({
+          where: { id: target.id },
+          data: { status: 'FAILED', error: validation.errors.join(' · ') },
+        });
+        continue;
+      }
+
       const result = await connector.publish(post);
 
       if (result.ok) {
