@@ -27,12 +27,15 @@ const envSchema = z
     REDIS_URL: optionalUrl.refine((v) => v === undefined || /^rediss?:\/\//.test(v), {
       message: 'REDIS_URL doit commencer par redis:// ou rediss://',
     }),
+    // Secret de signature des jetons d'authentification.
+    AUTH_SECRET: z.string().min(16).optional(),
+    AUTH_TOKEN_TTL_HOURS: z.coerce.number().int().min(1).max(720).default(168),
   })
   .superRefine((env, ctx) => {
     // En développement, l'API démarre sans base ni Redis et le signale dans /health.
     // En production, leur absence est une erreur de déploiement.
     if (env.NODE_ENV !== 'production') return;
-    for (const key of ['DATABASE_URL', 'REDIS_URL'] as const) {
+    for (const key of ['DATABASE_URL', 'REDIS_URL', 'AUTH_SECRET'] as const) {
       if (!env[key]) {
         ctx.addIssue({ code: 'custom', path: [key], message: `${key} est requis en production` });
       }

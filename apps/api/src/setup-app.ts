@@ -8,6 +8,10 @@ export const API_PREFIX = 'api/v1';
 export function setupApp(app: INestApplication, env: Env): void {
   app.setGlobalPrefix(API_PREFIX);
   app.use(helmet());
-  app.enableCors({ origin: env.CORS_ORIGINS, credentials: true });
+  app.enableCors({
+    origin: env.CORS_ORIGINS,
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Organization-Id'],
+  });
   app.enableShutdownHooks();
 }

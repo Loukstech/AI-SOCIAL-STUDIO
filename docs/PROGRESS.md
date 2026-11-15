@@ -53,10 +53,19 @@ La Phase 1 commence dès validation de ce livrable et choix de la langue de l'in
 
 ---
 
-## Phase 1 — Fondations SaaS
+## Phase 1 — Fondations SaaS (15 novembre 2026)
 
-### Prochaine étape recommandée
+**Statut : TERMINÉE.**
 
-1. Trancher les points ouverts listés dans [architecture/overview.md](architecture/overview.md).
-2. Héberger le frontend (Cloudflare Pages) et mettre à jour `CORS_ORIGINS`.
-3. Phase 1 : schéma de données détaillé, puis authentification et organisations.
+- Authentification locale : `scrypt` + jetons HMAC-SHA256, sessions révocables, `AUTH_SECRET` configuré sur Render.
+- Schéma Prisma livré : `User`, `Session`, `Organization`, `Member`, `Brand`, `MediaAsset`, `AuditLog`. Migration `20261115161000_phase1_fondations` appliquée sur Neon.
+- Multi-tenant par `X-Organization-Id`, RBAC `OWNER / ADMIN / EDITOR / VIEWER`.
+- Routes : `/auth/*`, `/organizations/*`, `/brands`, `/media`, `/dashboard`.
+- Interface produit : connexion, tableau de bord, organisations, marques, médiathèque ; l'ancien diagnostic technique reste accessible dans « État du système ».
+- Qualité : lint, typecheck, 18 tests unitaires, build, `pnpm test:phase1` (24 vérifications E2E), `pnpm test:online`.
+
+Détail des choix et du périmètre reporté : [PHASE1.md](PHASE1.md).
+
+### Prochaine étape
+
+Phase 2 — Connexions sociales : schéma des comptes sociaux, OAuth plateformes, invitations par e-mail et activation du stockage objet pour les fichiers binaires. Préalable : activer Cloudflare R2 dans le tableau de bord et faire tourner les clés exposées.

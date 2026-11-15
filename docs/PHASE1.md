@@ -1,19 +1,31 @@
-# Plan détaillé de la Phase 1
+# Phase 1 — Fondations SaaS
+
+> **Statut : LIVRÉE** (15 novembre 2026). Le périmètre livré est décrit en premier ; le plan détaillé initial est conservé plus bas comme référence pour les phases suivantes.
 
 ## Objectifs
 
-Fonder une application SaaS opérationnelle avec authentification, organisations multi-tenant, et schéma de données.
+Fonder une application SaaS opérationnelle avec authentification, organisations multi-tenant et schéma de données.
 
-## Décisions en attente
+## Périmètre livré
 
-Avant de commencer, choisir :
+- **Authentification locale** : inscription, connexion, déconnexion, mots de passe `scrypt` avec sel aléatoire, jetons signés HMAC-SHA256, sessions révocables stockées en base par empreinte (le jeton brut n'est jamais persisté).
+- **Multi-tenant** : une organisation est créée à l'inscription ; l'organisation active est transmise par l'en-tête `X-Organization-Id` ; toutes les données métier sont filtrées par `organizationId`.
+- **RBAC** : hiérarchie `OWNER > ADMIN > EDITOR > VIEWER`, appliquée par le décorateur `@MinRole`.
+- **Modèles Prisma** : `User`, `Session`, `Organization`, `Member`, `Brand`, `MediaAsset`, `AuditLog`, avec suppression logique `deletedAt` et journal d'audit. Migration appliquée sur Neon.
+- **API** : `/auth/*`, `/organizations/*`, `/brands`, `/media`, `/dashboard`, contrats Zod partagés dans `@ass/shared`.
+- **Interface** : connexion / inscription, tableau de bord, organisations et membres, marques, médiathèque, diagnostic système conservé en page interne.
+- **Qualité** : lint, typecheck, 18 tests unitaires, build, `test:phase1` (24 vérifications de bout en bout) et `test:online`.
 
-1. **Langue de l'interface** : français seul, ou français + anglais ?
+## Décisions prises
 
-Les autres décisions sont prises :
+1. **Langue** : français seul pour l'instant ; l'i18n est reportée.
+2. **Authentification** : locale avec `node:crypto`, sans service externe supplémentaire. OAuth Google, vérification d'e-mail et réinitialisation sont reportés en Phase 2.
+3. **Stockage** : la médiathèque ne gère que les métadonnées ; le dépôt binaire sera branché sur le stockage objet une fois activé (R2 ou Supabase Storage).
+4. **Base de données** : Neon PostgreSQL existante, pas de second projet Supabase.
 
-- **Authentification** : Supabase Auth (e-mail, Google, vérification, réinitialisation).
-- **Stockage** : Supabase Storage (50 Mo/fichier) — gratuit, pas de carte bancaire requise.
+## Plan détaillé initial (référence pour les phases suivantes)
+
+Les sections ci-dessous décrivent le schéma complet envisagé (20+ tables). Seules les fondations listées plus haut sont implémentées à ce stade.
 
 ## Étapes
 
@@ -145,16 +157,22 @@ Utilisateur
 - Tests d'intégration : création d'organisation, ajout de membre, création de contenu.
 - Tests E2E : inscription → création organisation → invitation membre → création contenu → publication.
 
-## Livrables de Phase 1
+## Livrables effectivement livrés
 
-1. Module authentification (Supabase Auth).
-2. Module organisations et memberships.
-3. Schéma Prisma complet avec 20+ tables.
-4. Migrations Prisma.
-5. RBAC et middleware de contrôle d'accès.
-6. Pages frontend : inscription, connexion, organisations, membres, profil.
-7. Tests unitaires et d'intégration.
-8. Dashboard simplifié : organisations, membres, états.
+1. Module d'authentification locale + sessions révocables.
+2. Module organisations et membres.
+3. Schéma Prisma de fondation (7 modèles, 2 enums) et migration appliquée.
+4. RBAC et garde d'accès par organisation.
+5. Pages frontend : inscription, connexion, organisations, membres, marques, médiathèque, état du système.
+6. Dashboard simplifié : compteurs et activité récente.
+7. Tests unitaires et test de bout en bout rejouable.
+
+## Reporté aux phases suivantes
+
+- Schéma métier complet (contenus, vidéos, publications, facturation).
+- OAuth, vérification d'e-mail, réinitialisation de mot de passe, invitations par e-mail.
+- Dépôt de fichiers binaires (stockage objet), dossiers et tags de médias.
+- Internationalisation.
 
 ## Calendrier estimé
 

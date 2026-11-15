@@ -4,7 +4,7 @@ Studio de production et de distribution de contenus assisté par IA : une idée 
 
 Le document de référence est [AI_Social_Studio_Cahier_des_Charges.md](AI_Social_Studio_Cahier_des_Charges.md). L'avancement réel est tenu dans [docs/PROGRESS.md](docs/PROGRESS.md).
 
-**État actuel : Phase 0 (socle technique).** Aucun module métier n'existe encore.
+**État actuel : Phase 1 (Fondations SaaS).** Comptes, organisations multi-tenant, droits par rôle, marques et médiathèque (métadonnées) sont opérationnels. Les connexions sociales, l'IA et la publication arrivent aux phases suivantes.
 
 ## Démarrage rapide
 
@@ -12,7 +12,7 @@ Prérequis : Node.js 22 ou plus, pnpm 12 (`npm install -g pnpm`). Docker n'est p
 
 ```bash
 pnpm install
-cp .env.example .env     # puis renseigner DATABASE_URL et REDIS_URL (voir ci-dessous)
+cp .env.example .env     # puis renseigner DATABASE_URL, REDIS_URL et AUTH_SECRET
 pnpm dev                 # API sur http://localhost:3000, web sur http://localhost:5173
 ```
 
@@ -24,7 +24,9 @@ Le fichier `.env.local` contient tous les jetons de gestion (Neon, Upstash, Rend
 | ------------------------------------ | ------------------------------------------------ |
 | `pnpm dev`                           | Lance l'API et le frontend en mode développement |
 | `pnpm build`                         | Compile tous les paquets                         |
-| `pnpm test`                          | Lance tous les tests                             |
+| `pnpm test`                          | Lance tous les tests unitaires                   |
+| `pnpm test:online`                   | Vérifie la production (frontend + API + CORS)    |
+| `pnpm test:phase1`                   | Parcours E2E Phase 1 (compte, marques, médias)   |
 | `pnpm lint` / `pnpm typecheck`       | Analyse statique                                 |
 | `pnpm format`                        | Formate le code avec Prettier                    |
 | `pnpm db:migrate` / `pnpm db:deploy` | Migrations Prisma (développement / production)   |

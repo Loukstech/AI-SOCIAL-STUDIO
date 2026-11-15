@@ -1,8 +1,6 @@
-// Schéma Prisma d'AI Social Studio.
-//
-// Phase 0 : aucun modèle métier. Le schéma détaillé (colonnes, index, contraintes,
-// enums, règles de suppression) est produit et validé au début de la Phase 1,
-// comme l'exige la section 19 du cahier des charges.
+// Schéma Prisma d'AI Social Studio — Phase 1 (Fondations SaaS).
+// Règles appliquées : identifiants UUID, soft-delete via `deletedAt`,
+// isolation multi-tenant par `organizationId`, journal d'audit append-only.
 
 generator client {
   provider     = "prisma-client"
@@ -12,4 +10,124 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+enum OrganizationRole {
+  OWNER
+  ADMIN
+  EDITOR
+  VIEWER
+}
+
+enum MediaKind {
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  name         String
+  passwordHash String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+  memberships  Member[]
+  sessions     Session[]
+  auditLogs    AuditLog[]
+
+  @@index([deletedAt])
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Organization {
+  id        String       @id @default(uuid())
+  name      String
+  slug      String       @unique
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  deletedAt DateTime?
+  members   Member[]
+  brands    Brand[]
+  media     MediaAsset[]
+  auditLogs AuditLog[]
+
+  @@index([deletedAt])
+}
+
+model Member {
+  id             String           @id @default(uuid())
+  userId         String
+  organizationId String
+  role           OrganizationRole @default(VIEWER)
+  createdAt      DateTime         @default(now())
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@index([organizationId])
+}
+
+model Brand {
+  id             String       @id @default(uuid())
+  organizationId String
+  name           String
+  description    String?
+  primaryColor   String?
+  toneOfVoice    String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  deletedAt      DateTime?
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  media          MediaAsset[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model MediaAsset {
+  id             String       @id @default(uuid())
+  organizationId String
+  brandId        String?
+  name           String
+  kind           MediaKind    @default(IMAGE)
+  mimeType       String?
+  sizeBytes      Int?
+  sourceUrl      String?
+  createdAt      DateTime     @default(now())
+  deletedAt      DateTime?
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  brand          Brand?       @relation(fields: [brandId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId])
+  @@index([brandId])
+}
+
+model AuditLog {
+  id             String        @id @default(uuid())
+  organizationId String?
+  actorId        String?
+  action         String
+  targetType     String?
+  targetId       String?
+  metadata       Json?
+  createdAt      DateTime      @default(now())
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  actor          User?         @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
+  @@index([actorId])
 }

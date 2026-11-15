@@ -24,14 +24,16 @@ describe('parseEnv', () => {
     expect(() => parseEnv({ DATABASE_URL: 'mysql://x' })).toThrow(/DATABASE_URL/);
   });
 
-  it('exige la base et Redis en production', () => {
+  it('exige la base, Redis et le secret de signature en production', () => {
+    const base = {
+      NODE_ENV: 'production',
+      DATABASE_URL: 'postgresql://u:p@h/db',
+      REDIS_URL: 'rediss://default:p@h:6379',
+    };
     expect(() => parseEnv({ NODE_ENV: 'production' })).toThrow(/DATABASE_URL est requis/);
+    expect(() => parseEnv(base)).toThrow(/AUTH_SECRET est requis/);
     expect(() =>
-      parseEnv({
-        NODE_ENV: 'production',
-        DATABASE_URL: 'postgresql://u:p@h/db',
-        REDIS_URL: 'rediss://default:p@h:6379',
-      }),
+      parseEnv({ ...base, AUTH_SECRET: 'secret-de-test-suffisamment-long' }),
     ).not.toThrow();
   });
 });

@@ -1,47 +1,33 @@
-import type { HealthResponse } from '@ass/shared';
-import { render, screen } from '@testing-library/react';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
+import { session, setSessionToken } from './lib/api';
 
-const health: HealthResponse = {
-  status: 'degraded',
-  version: '0.0.0',
-  environment: 'test',
-  uptimeSeconds: 3,
-  timestamp: '2026-11-13T10:00:00.000Z',
-  dependencies: { database: 'up', redis: 'not_configured' },
-};
-
-function mockFetch(impl: () => Promise<Response>) {
-  vi.stubGlobal('fetch', vi.fn(impl));
-}
+beforeEach(() => {
+  session.clear();
+  vi.stubGlobal('fetch', vi.fn());
+});
 
 afterEach(() => vi.unstubAllGlobals());
 
 describe('App', () => {
-  it("affiche l'état réel de chaque dépendance", async () => {
-    mockFetch(async () => Response.json(health));
+  it('affiche l’écran de connexion quand aucune session n’existe', () => {
     render(<App />);
-
-    expect(screen.getByText(/Interrogation de l'API/)).toBeInTheDocument();
-    expect(await screen.findByText('Non configuré')).toBeInTheDocument();
-    expect(screen.getAllByText('Opérationnel')).toHaveLength(2); // API + PostgreSQL
+    expect(screen.getByRole('heading', { name: 'AI Social Studio' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Se connecter' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Créer un compte' })).toBeInTheDocument();
   });
 
-  it("affiche une erreur explicite quand l'API ne répond pas", async () => {
-    mockFetch(async () => {
-      throw new TypeError('Failed to fetch');
-    });
+  it('permet de basculer vers la création de compte', () => {
     render(<App />);
-
-    expect(await screen.findByText('API injoignable')).toBeInTheDocument();
-    expect(screen.queryByText('Opérationnel')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Créer un compte' }));
+    expect(screen.getByText('Votre nom')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Créer mon espace' })).toBeInTheDocument();
   });
 
-  it('traite une réponse au format inattendu comme une erreur', async () => {
-    mockFetch(async () => Response.json({ status: 'ok' }));
+  it('vérifie la session existante avant d’afficher le tableau de bord', () => {
+    setSessionToken('jeton-de-test');
     render(<App />);
-
-    expect(await screen.findByText('API injoignable')).toBeInTheDocument();
+    expect(screen.getByText('Vérification de la session…')).toBeInTheDocument();
   });
 });
