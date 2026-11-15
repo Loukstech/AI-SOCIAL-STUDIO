@@ -1,4 +1,4 @@
-# État du déploiement (Phase 0)
+# État du déploiement (Phase 1)
 
 ## Services en ligne
 
@@ -32,9 +32,14 @@ CORS_ORIGINS=http://localhost:5173
 VITE_API_URL=http://localhost:3000
 DATABASE_URL=postgresql://<user>:<password>@<host>/neondb?sslmode=require
 REDIS_URL=rediss://default:<password>@<host>:6379
+AUTH_SECRET=<openssl rand -base64 48>
 ```
 
-En production ces valeurs sont injectées par Render, pas par un fichier.
+`AUTH_SECRET` signe les jetons de session (≥ 16 caractères) et est **obligatoire en production**.
+
+En production ces valeurs sont injectées par Render, pas par un fichier. Le jeu complet attendu sur Render est : `NODE_ENV`, `CORS_ORIGINS`, `DATABASE_URL`, `REDIS_URL`, `AUTH_SECRET`.
+
+> ⚠️ **Piège Render :** `PUT /v1/services/{id}/env-vars` **remplace** l'intégralité de la liste. Pour ajouter une seule variable, utiliser `PUT /v1/services/{id}/env-vars/{key}` ou renvoyer la liste complète. Une mise à jour partielle vide les autres variables : le déploiement suivant construit correctement mais échoue au health check (`update_failed`), car `parseEnv` exige `DATABASE_URL` et `REDIS_URL` en production.
 
 ### `.env.local` (local, ignoré par Git)
 
@@ -68,9 +73,26 @@ R2_BUCKET_NAME=...
 
 ### Frontend
 
-1. Compilation locale : `VITE_API_URL=https://ai-social-studio-api.onrender.com pnpm --filter @ass/web build`
-2. Envoi sur Cloudflare Pages : `wrangler pages deploy apps/web/dist --project-name ai-social-studio`
-3. Accès : https://ai-social-studio.pages.dev
+Le projet Cloudflare Pages est en **upload direct** (`ad_hoc`) : aucun dépôt Git n'est connecté, donc un push sur `main` ne publie **pas** le frontend. Il faut déployer explicitement après chaque changement d'interface.
+
+1. Compiler contre l'API de production. Comme `.env` local pointe vers `localhost` et que Vite donne priorité au fichier `.env`, créer un fichier local ignoré `.env.production` contenant `VITE_API_URL=https://ai-social-studio-api.onrender.com`, puis :
+
+   ```bash
+   VITE_API_URL=https://ai-social-studio-api.onrender.com pnpm --filter @ass/web build
+   ```
+
+2. Vérifier le bundle : il doit contenir `ai-social-studio-api.onrender.com` et **pas** `http://localhost:3000`.
+3. Publier sur la branche de production :
+
+   ```bash
+   npx wrangler pages deploy apps/web/dist \
+     --project-name ai-social-studio --branch main \
+     --commit-hash <sha> --commit-message "Phase 1"
+   ```
+
+   Le `--branch main` est indispensable : sans lui, Wrangler utilise la branche Git courante et crée un déploiement de prévisualisation.
+
+4. Accès : https://ai-social-studio.pages.dev
 
 **Automatisation à venir :** connecter le projet GitHub pour auto-déploiement à chaque push.
 
@@ -95,7 +117,7 @@ R2_BUCKET_NAME=...
 
 - L'API s'endort après 15 minutes sans trafic.
 - Premier appel après mise en veille : ~1 minute de latence.
-- Solution pour la démo : un ping gratuit (cron-job.org) toutes les 10 minutes.
+- Solution en place : le workflow GitHub Actions `ci.yml` tourne toutes les 10 minutes (cron) et exécute `smoke-online.mjs`, ce qui réveille l'API et vérifie la production.
 
 ### Partage du quota gratuit Render
 
@@ -105,8 +127,8 @@ R2_BUCKET_NAME=...
 
 ### CORS
 
-- `CORS_ORIGINS` autorise `https://ai-social-studio.pages.dev` et `http://localhost:5173`.
-- À mettre à jour si le frontend est hébergé ailleurs.
+- En production, `CORS_ORIGINS=https://ai-social-studio.pages.dev` ; en local, `http://localhost:5173`.
+- À mettre à jour si le frontend est hébergé ailleurs (préflight vérifié par `pnpm test:online`).
 
 ### Stockage
 
@@ -120,15 +142,22 @@ R2_BUCKET_NAME=...
 # Développement local
 pnpm dev                          # API:3000, Frontend:5173
 
+# Qualité locale
+pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm format:check
+
+# Tests en ligne (production)
+pnpm test:online                  # frontend, API, PostgreSQL, Redis, CORS, headers
+pnpm test:phase1                  # parcours E2E : compte, organisation, marques, médias
+
 # Déploiement
-pnpm --filter @ass/web build && npx wrangler pages deploy apps/web/dist --project-name ai-social-studio
-git push                          # Déclenche Render automatiquement
+pnpm --filter @ass/web build && npx wrangler pages deploy apps/web/dist --project-name ai-social-studio --branch main
+git push                          # Déclenche Render automatiquement (API uniquement)
 ```
 
 ## À faire avant production
 
 1. Régénérer tous les jetons (Neon, Upstash, Render, Cloudflare, GitHub) : une clé secrète R2 a figuré en clair dans l'historique Git de ce fichier — la rotation ne suffit pas, il faut aussi purger l'historique (git filter-repo / BFG) puis force-push.
-2. Changer les variables d'environnement Render : `CORS_ORIGINS`, `NODE_ENV`, etc.
+2. Vérifier avant chaque déploiement le jeu complet de variables Render (`NODE_ENV`, `CORS_ORIGINS`, `DATABASE_URL`, `REDIS_URL`, `AUTH_SECRET`) : voir le piège du `PUT` ci-dessus.
 3. Activer R2 (tableau de bord Cloudflare + carte bancaire), créer un bucket et renseigner `R2_BUCKET_NAME`, ou choisir Supabase Storage pour le stockage.
 4. Ajouter un monitoring (Sentry ou autre).
 5. Certificat SSL/domaine personnalisé.
