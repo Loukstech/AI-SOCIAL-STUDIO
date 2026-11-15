@@ -4,13 +4,20 @@ on:
   push:
     branches: [main]
   pull_request:
+  workflow_dispatch:
+  # Plan free Render : le service s'endort après ~15 min. Ce cron joue aussi
+  # le rôle de ping anti-veille, requis pour les publications programmées.
+  schedule:
+    - cron: '*/10 * * * *'
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
+  # Le cron ne lance que le smoke test en ligne, pas toute la chaîne de qualité.
   quality:
+    if: github.event_name != 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -32,3 +39,24 @@ jobs:
       # Aucune base ni Redis requis : les tests de Phase 0 n'en dépendent pas.
       - name: Lint, typecheck, tests et build
         run: pnpm turbo run lint typecheck test build
+
+  # Test EN LIGNE : valide le déploiement réel (Pages + Render), pas le local.
+  smoke-online:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Vérifier la production
+        env:
+          WEB_URL: ${{ vars.WEB_URL || 'https://ai-social-studio.pages.dev' }}
+          API_URL: ${{ vars.API_URL || 'https://ai-social-studio-api.onrender.com' }}
+          # Un push peut déclencher ce test pendant un redéploiement Render.
+          RETRIES: '10'
+          TIMEOUT: '60000'
+        run: node scripts/smoke-online.mjs
