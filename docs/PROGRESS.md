@@ -191,3 +191,23 @@ Détail : [PHASE7.md](PHASE7.md).
 ### Prochaine étape
 
 Export PNG des visuels (moteur raster) et branchement d'un transport de publication réel — ou ouverture des phases restantes du cahier des charges (analytics, collaboration temps réel).
+
+---
+
+## Phase 8 — Déclinaison multi-formats et export PNG (15 novembre 2026)
+
+**Statut : TERMINÉE.**
+
+- Déclinaison (§7) : `POST /image-projects/{id}/decline` produit la même composition dans plusieurs gabarits. Les calques de texte, la palette, la marque, le style et la graine sont repris ; seul le gabarit change et le composeur réajuste la typographie. Rien n'est étiré ni rogné.
+- Chaque déclinaison est un visuel autonome (SVG, avertissements propres) rattaché à son origine par `sourceProjectId`.
+- Règle de déclinaison extraite dans `planDecline`, **fonction pure** partagée par l'API et l'UI : format identique et `CUSTOM` ignorés avec motif, doublons dédupliqués, plateforme conservée si compatible et **retirée avec avertissement** sinon, plutôt qu'un échec global.
+- Export PNG **dans le navigateur** (canvas) : typographie identique à l'aperçu, aucune dépendance native, échelles 1× et 2×. Les logos et photos distantes sont intégrés en `data:` URI au préalable ; un CDN qui refuse la requête déclenche un avertissement nommé au lieu d'un PNG amputé en silence.
+- Interface : boutons PNG / PNG ×2, panneau « Décliner dans d'autres formats » avec compte-rendu des formats produits et ignorés, marquage des déclinaisons dans la galerie.
+- Modèle : `ImageProject.sourceProjectId` (auto-relation, `onDelete: SetNull`) ; migration `20261115240000_phase8_image_variants` appliquée sur Neon (9 migrations au total).
+- Qualité : 187 tests unitaires (15 nouveaux sur la déclinaison), `pnpm test:phase8` (65 vérifications E2E), `pnpm verify:png` (13 contrôles dans Chrome headless sur le module réel), lint/typecheck/build/format verts.
+
+Détail : [PHASE8.md](PHASE8.md).
+
+### Prochaine étape
+
+Export PNG côté serveur pour l'envoi automatisé, ou branchement d'un transport de publication réel (`PUBLISH_WEBHOOK_URL` ou adaptateurs OAuth).

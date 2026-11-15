@@ -179,6 +179,8 @@ export const imageProjectSchema = z.object({
   id: z.string(),
   organizationId: z.string(),
   brandId: z.string().nullable(),
+  /** Visuel d'origine quand celui-ci est une déclinaison. */
+  sourceProjectId: z.string().nullable(),
   title: z.string().nullable(),
   prompt: z.string(),
   format: imageFormatSchema,
@@ -207,3 +209,81 @@ export const imageProjectDetailSchema = imageProjectSchema.extend({
   svg: z.string(),
 });
 export type ImageProjectDetail = z.infer<typeof imageProjectDetailSchema>;
+
+// --- Déclinaison multi-formats (§7) ---
+
+/**
+ * Décliner un visuel, c'est recomposer **les mêmes calques de texte** dans un
+ * autre gabarit : le composeur réajuste la typographie, rien n'est étiré ni
+ * rogné. Une idée, plusieurs formats — c'est la promesse multiréseaux.
+ */
+export const declineImageProjectSchema = z.object({
+  formats: z.array(imageFormatSchema).min(1).max(5),
+});
+export type DeclineImageProjectInput = z.infer<typeof declineImageProjectSchema>;
+
+export interface DeclineTarget {
+  format: ImageFormat;
+  /** `null` quand le format est incompatible avec la plateforme d'origine. */
+  platform: SocialPlatform | null;
+  /** Avertissement à ajouter au visuel décliné, `null` si tout va bien. */
+  warning: string | null;
+}
+
+export interface DeclinePlan {
+  targets: DeclineTarget[];
+  skipped: Array<{ format: ImageFormat; reason: string }>;
+}
+
+/**
+ * Décide quels formats peuvent être produits à partir d'un visuel existant.
+ *
+ * Fonction pure, sans accès base ni réseau : c'est la règle métier de la
+ * déclinaison, donc elle est testable isolément et partagée par l'API et l'UI.
+ */
+export function planDecline(input: {
+  sourceFormat: ImageFormat;
+  platform: SocialPlatform | null;
+  formats: ImageFormat[];
+}): DeclinePlan {
+  const plan: DeclinePlan = { targets: [], skipped: [] };
+  const seen = new Set<ImageFormat>();
+
+  for (const format of input.formats) {
+    if (seen.has(format)) continue;
+    seen.add(format);
+
+    if (format === input.sourceFormat) {
+      plan.skipped.push({ format, reason: 'Format identique au visuel d’origine' });
+      continue;
+    }
+    if (format === 'CUSTOM') {
+      plan.skipped.push({
+        format,
+        reason: 'Un format personnalisé doit être composé explicitement, avec ses dimensions',
+      });
+      continue;
+    }
+
+    const { width, height } = resolveDimensions(format);
+    const problem = input.platform
+      ? checkPlatformFormat(input.platform, format, width, height)
+      : null;
+
+    plan.targets.push({
+      format,
+      platform: problem ? null : input.platform,
+      warning: problem
+        ? `Décliné sans plateforme : ${problem.charAt(0).toLowerCase()}${problem.slice(1)}`
+        : null,
+    });
+  }
+
+  return plan;
+}
+
+export const declineResultSchema = z.object({
+  created: z.array(imageProjectDetailSchema),
+  skipped: z.array(z.object({ format: imageFormatSchema, reason: z.string() })),
+});
+export type DeclineResult = z.infer<typeof declineResultSchema>;

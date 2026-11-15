@@ -17,8 +17,11 @@ import {
 import type { Response } from 'express';
 import {
   createImageProjectSchema,
+  declineImageProjectSchema,
   updateImageProjectSchema,
   type CreateImageProjectInput,
+  type DeclineImageProjectInput,
+  type DeclineResult,
   type ImageProject,
   type ImageProjectDetail,
   type UpdateImageProjectInput,
@@ -94,6 +97,18 @@ export class ImageProjectsController {
     @Param('id') id: string,
   ): Promise<ImageProjectDetail> {
     return this.images.rerender(this.org(request), id, request.auth!.userId);
+  }
+
+  /** Déclinaison dans d'autres gabarits, à calques de texte identiques. */
+  @Post(':id/decline')
+  @HttpCode(201)
+  @MinRole('EDITOR')
+  async decline(
+    @Req() request: AuthedRequest,
+    @Param('id') id: string,
+    @Body(new ZodPipe(declineImageProjectSchema)) body: DeclineImageProjectInput,
+  ): Promise<DeclineResult> {
+    return this.images.decline(this.org(request), id, request.auth!.userId, body);
   }
 
   @Delete(':id')

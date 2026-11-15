@@ -1,4 +1,4 @@
-# État du déploiement (Phase 7)
+# État du déploiement (Phase 8)
 
 ## Services en ligne
 
@@ -152,6 +152,8 @@ Le projet Cloudflare Pages est en **upload direct** (`ad_hoc`) : aucun dépôt G
 - Le SVG est stocké en base (colonne `text`) : un visuel pèse quelques kilo-octets, la limite Neon n'est pas un sujet à cette échelle.
 - L'aperçu web passe par une `data:` URI dans une balise `<img>` : le SVG ne peut pas exécuter de script.
 - Le téléchargement est servi par l'API (`Content-Disposition: attachment`). Un export PNG nécessiterait un moteur raster (resvg, sharp) ou un navigateur headless, non installés à ce stade.
+- **Export PNG : côté navigateur.** Le SVG est converti en canvas puis en `image/png`. Aucune dépendance serveur, aucune police à embarquer, et un rendu identique à l'aperçu. Les ressources externes (logo, photo) sont intégrées en `data:` URI avant conversion, car un SVG chargé comme image ne peut pas les charger lui-même ; si le CDN refuse la requête (CORS), l'utilisateur reçoit un avertissement nommé.
+- **Déclinaison** : `POST /image-projects/{id}/decline` recompose le visuel dans d'autres gabarits. Aucun coût, aucun appel externe. Une plateforme incompatible est retirée de la déclinaison avec un avertissement, plutôt que de faire échouer la requête entière.
 
 ### CORS
 
@@ -182,6 +184,8 @@ pnpm test:phase4                  # parcours E2E : édition, 7 styles, exports, 
 pnpm test:phase5                  # parcours E2E : génération de contenus, assistant
 pnpm test:phase6                  # parcours E2E : publication, calendrier, fuseau
 pnpm test:phase7                  # parcours E2E : visuels, Brand Kit, téléchargement
+pnpm test:phase8                  # parcours E2E : déclinaison multi-formats
+pnpm verify:png                   # export PNG dans Chrome headless
 
 # Déploiement
 pnpm --filter @ass/web build && npx wrangler pages deploy apps/web/dist --project-name ai-social-studio --branch main

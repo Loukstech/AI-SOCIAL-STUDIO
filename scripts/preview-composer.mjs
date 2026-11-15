@@ -9,6 +9,7 @@
  */
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { composeImage } from '../apps/api/dist/image/composer.js';
+import { imageFormatSpecs } from '../packages/shared/dist/index.js';
 
 const palette = ['#0f172a', '#7c5cff', '#22d3ee'];
 const warm = ['#2b1b12', '#f97316', '#fbbf24'];
@@ -130,6 +131,29 @@ const cases = [
       seed: 33,
     },
   },
+  // --- Déclinaison : mêmes calques, quatre gabarits (§7) ---
+  ...['SQUARE', 'PORTRAIT_4_5', 'STORY_9_16', 'LANDSCAPE_16_9'].map((format) => {
+    const spec = imageFormatSpecs[format];
+    return {
+      label: `${format} · Déclinaison`,
+      input: {
+        width: spec.width,
+        height: spec.height,
+        format,
+        style: 'EDITORIAL',
+        headline: 'Portes ouvertes samedi',
+        subheadline: 'De 10 h à 18 h, sans inscription. Venez voir les machines travailler.',
+        callToAction: 'Réserver',
+        badge: 'Atelier',
+        palette,
+        logoHref: null,
+        referenceHref: null,
+        brandName: 'Atelier Nord',
+        slogan: 'Le contenu, sans bruit',
+        seed: 31415,
+      },
+    };
+  }),
 ];
 
 const cards = cases

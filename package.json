@@ -21,6 +21,8 @@
     "test:phase5": "node scripts/smoke-phase5.mjs",
     "test:phase6": "node scripts/smoke-phase6.mjs",
     "test:phase7": "node scripts/smoke-phase7.mjs",
+    "test:phase8": "node scripts/smoke-phase8.mjs",
+    "verify:png": "node scripts/verify-png-export.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:generate": "pnpm --filter @ass/database generate",

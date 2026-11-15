@@ -9,6 +9,7 @@ import {
   socialPlatformLabels,
   socialPlatforms,
   type Brand,
+  type DeclineResult,
   type ImageFormat,
   type ImageProject,
   type ImageProjectDetail,
@@ -17,6 +18,7 @@ import {
   type SocialPlatform,
 } from '@ass/shared';
 import { api } from '../lib/api';
+import { downloadBlob, exportPng as buildPng } from '../lib/png-export';
 import { Alert, Button, Card, Empty, Field, formatDate, PageHeader } from '../components/ui';
 
 /**
@@ -86,6 +88,11 @@ export function ImageStudioPage() {
   const [selected, setSelected] = useState<ImageProjectDetail | null>(null);
   const [draft, setDraft] = useState<Draft>(emptyDraft);
   const [form, setForm] = useState<FormState>(initialForm);
+  const [declineFormats, setDeclineFormats] = useState<ImageFormat[]>([]);
+  const [declineResult, setDeclineResult] = useState<DeclineResult | null>(null);
+  const [declining, setDeclining] = useState(false);
+  const [pngBusy, setPngBusy] = useState(false);
+  const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [reload, setReload] = useState(0);
@@ -135,6 +142,9 @@ export function ImageStudioPage() {
       callToAction: detail.callToAction ?? '',
       badge: detail.badge ?? '',
     });
+    setDeclineFormats([]);
+    setDeclineResult(null);
+    setNotice('');
     setError('');
   }
 
@@ -225,6 +235,56 @@ export function ImageStudioPage() {
       refresh();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Suppression impossible');
+    }
+  }
+
+  function toggleDecline(format: ImageFormat) {
+    setDeclineFormats((prev) =>
+      prev.includes(format) ? prev.filter((value) => value !== format) : [...prev, format],
+    );
+  }
+
+  /** Export PNG : intégration des ressources externes puis rendu canvas. */
+  async function exportPng(scale: number) {
+    if (!selected) return;
+    setError('');
+    setNotice('');
+    setPngBusy(true);
+    try {
+      const result = await buildPng({
+        svg: selected.svg,
+        width: selected.width,
+        height: selected.height,
+        filename: `visuel-${selected.format.toLowerCase()}-${selected.id}`,
+        scale,
+      });
+      downloadBlob(result.blob, result.filename);
+      setNotice(
+        result.warnings.length > 0
+          ? `PNG exporté (${result.filename}) — ${result.warnings.join(' ; ')}`
+          : `PNG exporté : ${result.filename} (${selected.width * scale}×${selected.height * scale})`,
+      );
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Export PNG impossible');
+    } finally {
+      setPngBusy(false);
+    }
+  }
+
+  async function decline() {
+    if (!selected || declineFormats.length === 0) return;
+    setError('');
+    setNotice('');
+    setDeclining(true);
+    try {
+      const result = await api.image.decline(selected.id, declineFormats);
+      setDeclineResult(result);
+      setDeclineFormats([]);
+      refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Déclinaison impossible');
+    } finally {
+      setDeclining(false);
     }
   }
 
@@ -541,6 +601,12 @@ export function ImageStudioPage() {
                 <Button variant="ghost" onClick={() => void rerender()} disabled={busy}>
                   Nouveau décor
                 </Button>
+                <Button variant="ghost" onClick={() => void exportPng(1)} disabled={pngBusy}>
+                  {pngBusy ? 'Export…' : 'PNG'}
+                </Button>
+                <Button variant="ghost" onClick={() => void exportPng(2)} disabled={pngBusy}>
+                  PNG ×2
+                </Button>
                 <a
                   href={api.image.downloadUrl(selected.id)}
                   className="inline-flex items-center rounded-lg border border-border px-3.5 py-2 text-sm font-medium transition-colors hover:border-accent hover:text-accent"
@@ -552,6 +618,59 @@ export function ImageStudioPage() {
                   Supprimer
                 </Button>
               </div>
+
+              {notice && (
+                <p
+                  role="status"
+                  className="rounded-lg border border-accent/40 bg-accent/10 px-3 py-2 text-xs text-accent"
+                >
+                  {notice}
+                </p>
+              )}
+
+              <fieldset className="space-y-2 rounded-lg border border-border px-3 py-3">
+                <legend className="px-1 text-sm font-medium">Décliner dans d'autres formats</legend>
+                <p className="text-xs text-text-muted">
+                  Mêmes textes, même palette, même graine : seul le gabarit change et la typographie
+                  se réajuste.
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  {imageFormats
+                    .filter((format) => format !== selected.format && format !== 'CUSTOM')
+                    .map((format) => (
+                      <label key={format} className="flex items-center gap-1.5 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={declineFormats.includes(format)}
+                          onChange={() => toggleDecline(format)}
+                        />
+                        <span>{imageFormatLabels[format]}</span>
+                      </label>
+                    ))}
+                </div>
+                <Button
+                  onClick={() => void decline()}
+                  disabled={declining || declineFormats.length === 0}
+                >
+                  {declining ? 'Déclinaison…' : 'Décliner'}
+                </Button>
+                {declineResult && (
+                  <div className="space-y-1 text-xs text-text-muted">
+                    {declineResult.created.length > 0 && (
+                      <p className="text-accent">
+                        {declineResult.created.length} visuel
+                        {declineResult.created.length > 1 ? 's' : ''} créé
+                        {declineResult.created.length > 1 ? 's' : ''}.
+                      </p>
+                    )}
+                    {declineResult.skipped.map((item) => (
+                      <p key={item.format}>
+                        · {imageFormatLabels[item.format]} ignoré — {item.reason}
+                      </p>
+                    ))}
+                  </div>
+                )}
+              </fieldset>
 
               <dl className="grid grid-cols-2 gap-x-4 gap-y-1 border-t border-border pt-3 text-xs text-text-muted">
                 <div>
@@ -614,6 +733,7 @@ export function ImageStudioPage() {
                     <span className="block text-xs text-text-muted">
                       {imageFormatLabels[project.format]} · {project.width}×{project.height} ·{' '}
                       {formatDate(project.createdAt)}
+                      {project.sourceProjectId ? ' · déclinaison' : ''}
                     </span>
                   </button>
                 </li>

@@ -8,6 +8,7 @@ import {
   contentProjectSchema,
   createdInvitationSchema,
   dashboardStatsSchema,
+  declineResultSchema,
   healthResponseSchema,
   imageProjectDetailSchema,
   imageProjectSchema,
@@ -45,11 +46,13 @@ import {
   type CreateSocialAccountInput,
   type CreatedInvitation,
   type DashboardStats,
+  type DeclineResult,
   type DuplicatePublicationInput,
   type GenerateContentInput,
   type HealthResponse,
   type ImageProject,
   type ImageProjectDetail,
+  type ImageFormat,
   type Invitation,
   type LoginInput,
   type MediaAsset,
@@ -213,6 +216,9 @@ export const api = {
       }),
     rerender: (id: string): Promise<ImageProjectDetail> =>
       post(`/image-projects/${id}/rerender`, imageProjectDetailSchema, {}),
+    /** Décline le visuel dans d'autres gabarits, à calques identiques. */
+    decline: (id: string, formats: ImageFormat[]): Promise<DeclineResult> =>
+      post(`/image-projects/${id}/decline`, declineResultSchema, { formats }),
     remove: (id: string): Promise<unknown> =>
       request(`/image-projects/${id}`, z.unknown(), { method: 'DELETE' }),
     /** URL de téléchargement direct du SVG. */

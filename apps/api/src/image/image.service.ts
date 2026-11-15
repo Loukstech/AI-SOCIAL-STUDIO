@@ -4,10 +4,13 @@ import {
   checkPlatformFormat,
   imageFormatSchema,
   imageStyleSchema,
+  planDecline,
   resolveDimensions,
   socialPlatformSchema,
   type Brand,
   type CreateImageProjectInput,
+  type DeclineImageProjectInput,
+  type DeclineResult,
   type ImageFormat,
   type ImageProject,
   type ImageProjectDetail,
@@ -30,6 +33,7 @@ interface ImageRow {
   id: string;
   organizationId: string;
   brandId: string | null;
+  sourceProjectId: string | null;
   title: string | null;
   prompt: string;
   format: string;
@@ -240,6 +244,87 @@ export class ImageService {
     await this.audit(organizationId, actorId, 'image.deleted', id, null);
   }
 
+  /**
+   * Décline un visuel dans d'autres gabarits (§7).
+   *
+   * Les calques de texte, la palette, la marque et le style sont repris tels
+   * quels ; seul le gabarit change, et le composeur réajuste la typographie.
+   * Chaque déclinaison est un visuel à part entière, rattaché à son origine.
+   */
+  async decline(
+    organizationId: string,
+    id: string,
+    actorId: string,
+    input: DeclineImageProjectInput,
+  ): Promise<DeclineResult> {
+    const source = await this.find(organizationId, id);
+    const sourceFormat = imageFormatSchema.parse(source.format);
+    const style = imageStyleSchema.parse(source.style);
+    const platform = parsePlatform(source.platform);
+    const brand = source.brandId ? await this.brand(organizationId, source.brandId) : null;
+
+    const plan = planDecline({ sourceFormat, platform, formats: input.formats });
+
+    const created: ImageProjectDetail[] = [];
+    for (const target of plan.targets) {
+      const { width, height } = resolveDimensions(target.format);
+      const rendered = await this.render({
+        organizationId,
+        format: target.format,
+        style,
+        width,
+        height,
+        palette: source.palette,
+        headline: source.headline,
+        subheadline: source.subheadline,
+        callToAction: source.callToAction,
+        badge: source.badge,
+        logoMediaId: source.logoMediaId,
+        referenceImageIds: source.referenceMediaIds,
+        brandId: source.brandId,
+        platform: target.platform,
+        seed: source.seed,
+        brand,
+      });
+
+      const row = await this.db.client.imageProject.create({
+        data: {
+          organizationId,
+          createdById: actorId,
+          prompt: source.prompt,
+          format: target.format,
+          width,
+          height,
+          style,
+          provider: source.provider,
+          model: source.model,
+          seed: source.seed,
+          palette: rendered.palette,
+          logoMediaId: rendered.logoMediaId,
+          referenceMediaIds: rendered.referenceImageIds,
+          headline: rendered.headline,
+          subheadline: rendered.subheadline,
+          callToAction: rendered.callToAction,
+          badge: rendered.badge,
+          svg: rendered.svg,
+          warnings: target.warning ? [...rendered.warnings, target.warning] : rendered.warnings,
+          sourceProjectId: source.id,
+          ...(source.title ? { title: source.title } : {}),
+          ...(source.brandId ? { brandId: source.brandId } : {}),
+          ...(target.platform ? { platform: target.platform } : {}),
+        },
+      });
+      created.push(this.toDetail(row as unknown as ImageRow));
+    }
+
+    await this.audit(organizationId, actorId, 'image.declined', source.id, {
+      created: created.length,
+      skipped: plan.skipped.length,
+    });
+
+    return { created, skipped: plan.skipped };
+  }
+
   // --- Rendu ---
 
   private async render(input: {
@@ -394,6 +479,7 @@ export class ImageService {
       id: row.id,
       organizationId: row.organizationId,
       brandId: row.brandId,
+      sourceProjectId: row.sourceProjectId,
       title: row.title,
       prompt: row.prompt,
       format: imageFormatSchema.parse(row.format),

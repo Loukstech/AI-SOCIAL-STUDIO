@@ -587,10 +587,15 @@ model ImageProject {
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
   deletedAt         DateTime?
+  /// Visuel d'origine quand celui-ci est une déclinaison (§7).
+  sourceProjectId   String?
   organization      Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   brand             Brand?          @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  source            ImageProject?   @relation("ImageVariants", fields: [sourceProjectId], references: [id], onDelete: SetNull)
+  variants          ImageProject[]  @relation("ImageVariants")
 
   @@index([organizationId, createdAt])
   @@index([brandId])
   @@index([deletedAt])
+  @@index([sourceProjectId])
 }
