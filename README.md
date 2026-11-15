@@ -4,7 +4,7 @@ Studio de production et de distribution de contenus assisté par IA : une idée 
 
 Le document de référence est [AI_Social_Studio_Cahier_des_Charges.md](AI_Social_Studio_Cahier_des_Charges.md). L'avancement réel est tenu dans [docs/PROGRESS.md](docs/PROGRESS.md).
 
-**État actuel : Phase 9 (connexion des comptes sociaux).** Comptes, organisations multi-tenant, droits par rôle, Brand Kit complet, médiathèque (métadonnées), comptes sociaux avec jetons chiffrés et cycle de vie OAuth complet (autorisation, PKCE, échange, renouvellement, détection d'erreur), invitations de membres, projets vidéo avec transcription éditable, sept styles de sous-titres, exports SRT/VTT/TXT, extraction des meilleurs passages, génération de contenus multiréseaux avec assistant rédactionnel, circuit de validation des publications, programmation, calendrier éditorial, composition de visuels SVG éditables, déclinaison multi-formats et export PNG sont opérationnels. Le rendu ffmpeg et l'envoi réel vers les réseaux arrivent aux phases suivantes ; la connexion OAuth, elle, est prête et attend les identifiants d'application des fournisseurs.
+**État actuel : Phase 10 (analytics).** Comptes, organisations multi-tenant, droits par rôle, Brand Kit complet, médiathèque (métadonnées), comptes sociaux avec jetons chiffrés et cycle de vie OAuth complet (autorisation, PKCE, échange, renouvellement, détection d'erreur), invitations de membres, projets vidéo avec transcription éditable, sept styles de sous-titres, exports SRT/VTT/TXT, extraction des meilleurs passages, génération de contenus multiréseaux avec assistant rédactionnel, circuit de validation des publications, programmation, calendrier éditorial, composition de visuels SVG éditables, déclinaison multi-formats, export PNG et mesure des performances (métriques horodatées, provenance affichée, agrégats qui refusent de calculer quand la donnée manque) sont opérationnels. Le rendu ffmpeg et l'envoi réel vers les réseaux arrivent aux phases suivantes ; la connexion OAuth, elle, est prête et attend les identifiants d'application des fournisseurs.
 
 ## Démarrage rapide
 
@@ -35,6 +35,7 @@ Le fichier `.env.local` contient tous les jetons de gestion (Neon, Upstash, Rend
 | `pnpm test:phase7`                   | Parcours E2E Phase 7 (visuels, Brand Kit)           |
 | `pnpm test:phase8`                   | Parcours E2E Phase 8 (déclinaison multi-formats)    |
 | `pnpm test:phase9`                   | Parcours E2E Phase 9 (connexions OAuth, santé)      |
+| `pnpm test:phase10`                  | Parcours E2E Phase 10 (métriques, agrégats, CSV)    |
 | `pnpm verify:png`                    | Export PNG vérifié dans Chrome headless             |
 | `pnpm lint` / `pnpm typecheck`       | Analyse statique                                    |
 | `pnpm format`                        | Formate le code avec Prettier                       |

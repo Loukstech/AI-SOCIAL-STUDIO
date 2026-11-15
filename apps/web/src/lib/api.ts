@@ -1,5 +1,9 @@
 import {
   acceptedInvitationSchema,
+  analyticsOverviewSchema,
+  collectResultSchema,
+  measurementSchema,
+  topPublicationsSchema,
   authResponseSchema,
   brandSchema,
   calendarResponseSchema,
@@ -30,6 +34,13 @@ import {
   videoProjectSchema,
   z,
   type AcceptedInvitation,
+  type AnalyticsOverview,
+  type AnalyticsQuery,
+  type CollectResult,
+  type Measurement,
+  type Ranking,
+  type RecordMeasurementInput,
+  type TopPublications,
   type AuthResponse,
   type Brand,
   type CalendarQuery,
@@ -170,6 +181,28 @@ async function request<T>(path: string, schema: z.ZodType<T>, init: RequestInit 
 const post = <T>(path: string, schema: z.ZodType<T>, body: unknown): Promise<T> =>
   request(path, schema, { method: 'POST', body: JSON.stringify(body) });
 
+/** Requête dont la réponse n'est pas du JSON (export CSV). */
+async function requestText(path: string): Promise<string> {
+  const headers = new Headers();
+  const token = session.token;
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  const org = session.organizationId;
+  if (org) headers.set('X-Organization-Id', org);
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}/api/v1${path}`, { headers });
+  } catch {
+    throw new ApiError(0, 'API injoignable');
+  }
+  if (response.status === 401) {
+    session.clear();
+    throw new ApiError(401, 'Session expirée, reconnectez-vous');
+  }
+  if (!response.ok) throw new ApiError(response.status, `Erreur ${response.status}`);
+  return response.text();
+}
+
 /** Sérialise les filtres en query string, en ignorant les valeurs vides. */
 function queryString(query: object): string {
   const params = new URLSearchParams();
@@ -259,6 +292,25 @@ export const api = {
       request('/social-accounts/health', z.array(connectionHealthSchema)),
     remove: (id: string): Promise<unknown> =>
       request(`/social-accounts/${id}`, z.unknown(), { method: 'DELETE' }),
+  },
+
+  analytics: {
+    overview: (query: Partial<AnalyticsQuery> = {}): Promise<AnalyticsOverview> =>
+      request(`/analytics/overview${queryString(query)}`, analyticsOverviewSchema),
+    top: (query: Partial<AnalyticsQuery> & { rankedBy?: Ranking } = {}): Promise<TopPublications> =>
+      request(`/analytics/top${queryString(query)}`, topPublicationsSchema),
+    history: (publicationId: string, targetId: string): Promise<Measurement[]> =>
+      request(
+        `/analytics/measurements${queryString({ publicationId, targetId })}`,
+        z.array(measurementSchema),
+      ),
+    record: (body: RecordMeasurementInput): Promise<Measurement> =>
+      post('/analytics/measurements', measurementSchema, body),
+    /** Collecte auprès des plateformes : rapporte aussi ce qui n'a pas pu l'être. */
+    collect: (): Promise<CollectResult> => post('/analytics/collect', collectResultSchema, {}),
+    /** CSV brut, téléchargé côté navigateur avec l'en-tête d'authentification. */
+    exportCsv: (query: Partial<AnalyticsQuery> = {}): Promise<string> =>
+      requestText(`/analytics/export.csv${queryString(query)}`),
   },
 
   contentGeneration: {

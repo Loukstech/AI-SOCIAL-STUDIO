@@ -1,4 +1,4 @@
-# État du déploiement (Phase 9)
+# État du déploiement (Phase 10)
 
 ## Services en ligne
 
@@ -173,6 +173,14 @@ Le projet Cloudflare Pages est en **upload direct** (`ad_hoc`) : aucun dépôt G
 - **Export PNG : côté navigateur.** Le SVG est converti en canvas puis en `image/png`. Aucune dépendance serveur, aucune police à embarquer, et un rendu identique à l'aperçu. Les ressources externes (logo, photo) sont intégrées en `data:` URI avant conversion, car un SVG chargé comme image ne peut pas les charger lui-même ; si le CDN refuse la requête (CORS), l'utilisateur reçoit un avertissement nommé.
 - **Déclinaison** : `POST /image-projects/{id}/decline` recompose le visuel dans d'autres gabarits. Aucun coût, aucun appel externe. Une plateforme incompatible est retirée de la déclinaison avec un avertissement, plutôt que de faire échouer la requête entière.
 
+### Mesure des performances
+
+- Aucune variable d'environnement, aucune clé : les métriques sont saisies via l'API ou lues par les adaptateurs de plateforme. Pas de coût variable.
+- La collecte automatique (`POST /api/v1/analytics/collect`) n'appelle un fournisseur que si ses identifiants sont présents ; sinon elle rend `collected: 0` et un motif par cible. Rien n'est facturé et rien n'est inventé.
+- Les agrégats sont calculés à la volée (deux requêtes indexées : `[organizationId, collectedAt]` et `[targetId, collectedAt]`). À l'échelle de Neon, pas de table de résumé à maintenir.
+- `PublicationMetric` cascade avec sa cible : supprimer une publication supprime ses mesures, donc pas de ligne orpheline à nettoyer.
+- L'export CSV est généré en mémoire et renvoyé avec `Content-Disposition`; aucune écriture disque, compatible avec le système de fichiers éphémère de Render.
+
 ### CORS
 
 - En production, `CORS_ORIGINS=https://ai-social-studio.pages.dev` ; en local, `http://localhost:5173`.
@@ -203,6 +211,8 @@ pnpm test:phase5                  # parcours E2E : génération de contenus, ass
 pnpm test:phase6                  # parcours E2E : publication, calendrier, fuseau
 pnpm test:phase7                  # parcours E2E : visuels, Brand Kit, téléchargement
 pnpm test:phase8                  # parcours E2E : déclinaison multi-formats
+pnpm test:phase9                  # parcours E2E : connexions OAuth, santé des comptes
+pnpm test:phase10                 # parcours E2E : métriques, agrégats, export CSV
 pnpm verify:png                   # export PNG dans Chrome headless
 
 # Déploiement

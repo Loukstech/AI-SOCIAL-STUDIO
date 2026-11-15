@@ -100,6 +100,14 @@ export function DashboardPage({ onNavigate }: { onNavigate: (page: string) => vo
                 → Programmer dans le calendrier éditorial
               </button>
             </li>
+            <li>
+              <button
+                className="text-accent hover:underline"
+                onClick={() => onNavigate('analytics')}
+              >
+                → Mesurer ce que les publications ont produit
+              </button>
+            </li>
           </ul>
         </Card>
         <Card>

@@ -516,6 +516,7 @@ model PublicationTarget {
   publishedAt     DateTime?
   publication     Publication             @relation(fields: [publicationId], references: [id], onDelete: Cascade)
   socialAccount   SocialAccount           @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+  metrics         PublicationMetric[]
 
   @@unique([publicationId, socialAccountId])
   @@index([publicationId])
@@ -533,6 +534,51 @@ model PublicationEvent {
   publication   Publication        @relation(fields: [publicationId], references: [id], onDelete: Cascade)
 
   @@index([publicationId, createdAt])
+}
+
+// --- Phase 10 : Analytics (§13) ---
+
+/// Provenance d'une mesure. §13 impose de l'afficher : une valeur saisie à la
+/// main et une valeur lue sur l'API du réseau n'ont pas la même valeur.
+enum MetricSource {
+  /// Saisie par un utilisateur dans le studio.
+  MANUAL
+  /// Lue sur l'API du fournisseur par un adaptateur natif.
+  PLATFORM_API
+  /// Rapportée par le transport de publication externe.
+  WEBHOOK
+}
+
+/// Une mesure, à une date, pour une cible de publication.
+///
+/// Chaque colonne est **nullable** : `null` signifie « métrique indisponible
+/// pour cette mesure », `0` signifie « mesurée à zéro ». Confondre les deux
+/// reviendrait à inventer des chiffres, ce que le cahier des charges interdit.
+model PublicationMetric {
+  id             String            @id @default(uuid())
+  organizationId String
+  targetId       String
+  platform       SocialPlatform
+  source         MetricSource
+  /// Date à laquelle les chiffres ont été observés chez le réseau.
+  collectedAt    DateTime
+  /// Date d'enregistrement dans le studio (peut différer de `collectedAt`).
+  syncedAt       DateTime          @default(now())
+  recordedById   String?
+  views          Int?
+  impressions    Int?
+  reach          Int?
+  likes          Int?
+  comments       Int?
+  shares         Int?
+  saves          Int?
+  clicks         Int?
+  /// Précision libre : panneau utilisé, période réelle, outil de relevé…
+  note           String?
+  target         PublicationTarget @relation(fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, collectedAt])
+  @@index([targetId, collectedAt])
 }
 
 // --- Phase 7 : AI Image Studio et Brand Kit (§7, §8) ---

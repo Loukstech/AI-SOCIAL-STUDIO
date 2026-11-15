@@ -13,26 +13,41 @@ const SECRET = 'secret-de-test-suffisamment-long';
 const future = () => Math.floor(Date.now() / 1000) + 3600;
 
 describe('crypto', () => {
-  it('hache un mot de passe avec un sel aléatoire et le vérifie', async () => {
-    const first = await hashPassword('MotDePasse123!');
-    const second = await hashPassword('MotDePasse123!');
-    expect(first.startsWith('scrypt$')).toBe(true);
-    expect(first).not.toBe(second);
-    await expect(verifyPassword('MotDePasse123!', first)).resolves.toBe(true);
-    await expect(verifyPassword('MotDePasse123!', second)).resolves.toBe(true);
-    await expect(verifyPassword('autre-mot-de-passe', first)).resolves.toBe(false);
-  });
+  /**
+   * scrypt est volontairement coûteux : ces deux tests enchaînent plusieurs
+   * dérivations et dépassent le délai par défaut de 5 s quand la suite tourne
+   * en parallèle des builds du monorepo. Le délai est donc explicite.
+   */
+  const SCRYPT_TIMEOUT = 30_000;
 
-  it('refuse un hash malformé ou tronqué sans lever d’exception', async () => {
-    const valid = await hashPassword('MotDePasse123!');
-    await expect(verifyPassword('x', 'mot-de-passe-en-clair')).resolves.toBe(false);
-    await expect(verifyPassword('x', 'scrypt$zz$zz')).resolves.toBe(false);
-    await expect(verifyPassword('x', 'scrypt$$')).resolves.toBe(false);
-    await expect(verifyPassword('MotDePasse123!', valid.slice(0, -2))).resolves.toBe(false);
-    await expect(
-      verifyPassword('MotDePasse123!', `scrypt$${'0'.repeat(32)}$${'0'.repeat(128)}`),
-    ).resolves.toBe(false);
-  });
+  it(
+    'hache un mot de passe avec un sel aléatoire et le vérifie',
+    async () => {
+      const first = await hashPassword('MotDePasse123!');
+      const second = await hashPassword('MotDePasse123!');
+      expect(first.startsWith('scrypt$')).toBe(true);
+      expect(first).not.toBe(second);
+      await expect(verifyPassword('MotDePasse123!', first)).resolves.toBe(true);
+      await expect(verifyPassword('MotDePasse123!', second)).resolves.toBe(true);
+      await expect(verifyPassword('autre-mot-de-passe', first)).resolves.toBe(false);
+    },
+    SCRYPT_TIMEOUT,
+  );
+
+  it(
+    'refuse un hash malformé ou tronqué sans lever d’exception',
+    async () => {
+      const valid = await hashPassword('MotDePasse123!');
+      await expect(verifyPassword('x', 'mot-de-passe-en-clair')).resolves.toBe(false);
+      await expect(verifyPassword('x', 'scrypt$zz$zz')).resolves.toBe(false);
+      await expect(verifyPassword('x', 'scrypt$$')).resolves.toBe(false);
+      await expect(verifyPassword('MotDePasse123!', valid.slice(0, -2))).resolves.toBe(false);
+      await expect(
+        verifyPassword('MotDePasse123!', `scrypt$${'0'.repeat(32)}$${'0'.repeat(128)}`),
+      ).resolves.toBe(false);
+    },
+    SCRYPT_TIMEOUT,
+  );
 
   it('signe et vérifie un jeton, et rejette toute altération', () => {
     const payload = { sub: 'user-1', sid: 'session-1', iat: 1, exp: future() };

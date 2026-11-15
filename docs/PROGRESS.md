@@ -237,3 +237,28 @@ Détail : [PHASE9.md](PHASE9.md).
 ### Prochaine étape
 
 Créer les applications OAuth (Meta, LinkedIn, X, TikTok, Google, Pinterest), renseigner les douze variables, passer les revues de plateforme, puis écrire les adaptateurs d'envoi natifs — les jetons obtenus par ce flux sont précisément ce qu'il faut pour brancher `publish()` sur les API réelles.
+
+---
+
+## Phase 10 — Analytics (§13)
+
+**Statut : TERMINÉE.**
+
+- Règle du §13 appliquée de bout en bout : **aucune métrique n'est inventée**. `null` reste `null` dans l'API, le contrat partagé, le CSV et l'interface ; `0` signifie « mesuré à zéro ». Les deux ne sont jamais confondus.
+- Agrégation honnête : `sumMetrics` renvoie `{ value, contributors }` par métrique, donc un total de 1 200 vues alimenté par 3 mesures sur 12 s'affiche avec sa couverture, pas comme un total complet.
+- Taux d'engagement conditionnel : les quatre composantes (likes, commentaires, partages, enregistrements) et un dénominateur d'audience sont exigés. Sinon `value: null` **et** le motif exact de l'indisponibilité. Le dénominateur utilisé (`impressions` ou `reach`) est nommé.
+- Correction de justesse en cours de phase : `pooledEngagement` calcule uniquement sur les mesures **complètes** et expose `basedOn`. Additionner toutes les mesures avant de diviser gonflait le dénominateur avec des numérateurs partiels et faisait baisser le taux sans raison.
+- Calcul en rapport de sommes, jamais en moyenne de taux — sinon une publication vue 10 fois pèserait autant qu'une vue 10 000 fois.
+- Une seule mesure par cible retenue (compteurs cumulatifs) : `latestByTarget` garde la plus récente de la période, départage par date d'enregistrement, et l'explique dans les notes.
+- Portée exposée mais signalée comme non dédupliquée ; audience (abonnés) déclarée indisponible avec son motif plutôt qu'estimée.
+- `POST /analytics/collect` interroge les adaptateurs et rend `{ attempted, collected, skipped }` : sans identifiants natifs, `collected: 0` et un motif par cible. Aucun chiffre fabriqué.
+- Export CSV (une ligne par mesure, séparateur `;`, BOM UTF-8, en-têtes français) : une métrique absente laisse une cellule vide, jamais `0`.
+- Interface : page « Analytics » avec période/marque/classement, cartes de synthèse, carte « Limites de ces chiffres », comparaison par réseau avec couverture en infobulle, meilleurs contenus avec provenance et date de relevé, saisie et historique, collecte, export.
+- Modèle `PublicationMetric` (`MANUAL` / `PLATFORM_API` / `WEBHOOK`, `collectedAt` + `syncedAt`) ; migration `20261115260000_phase10_publication_metrics` appliquée sur Neon (11 migrations au total).
+- Qualité : 301 tests unitaires (35 sur analytics), `pnpm test:phase10` (62 vérifications E2E), lint/typecheck/build/format verts.
+
+Détail : [PHASE10.md](PHASE10.md).
+
+### Prochaine étape
+
+Collaboration temps réel (commentaires, présence) et notifications — les autres volets de la Phase 6 du cahier des charges ; la collecte automatique des statistiques s'activera d'elle-même dès que les applications OAuth de la Phase 9 auront leurs identifiants.

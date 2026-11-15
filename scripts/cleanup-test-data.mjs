@@ -32,6 +32,8 @@ const TABLES = [
   'videoProject',
   'contentProject',
   'publication',
+  'publicationTarget',
+  'publicationMetric',
   'imageProject',
   'auditLog',
 ];

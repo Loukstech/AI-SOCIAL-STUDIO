@@ -6,6 +6,7 @@ import {
   type User,
 } from '@ass/shared';
 import { api, session, setActiveOrganization } from './lib/api';
+import { AnalyticsPage } from './pages/AnalyticsPage';
 import { AuthPage } from './pages/AuthPage';
 import { BrandsPage } from './pages/BrandsPage';
 import { CalendarPage } from './pages/CalendarPage';
@@ -30,6 +31,7 @@ type Page =
   | 'image'
   | 'publishing'
   | 'calendar'
+  | 'analytics'
   | 'system';
 
 const navigation: { id: Page; label: string }[] = [
@@ -43,6 +45,7 @@ const navigation: { id: Page; label: string }[] = [
   { id: 'image', label: 'AI Image Studio' },
   { id: 'publishing', label: 'Centre de publication' },
   { id: 'calendar', label: 'Calendrier éditorial' },
+  { id: 'analytics', label: 'Analytics' },
   { id: 'system', label: 'État du système' },
 ];
 
@@ -186,7 +189,7 @@ export function App() {
       <aside className="border-b border-border bg-surface lg:border-b-0 lg:border-r">
         <div className="flex h-full flex-col gap-6 p-5">
           <div>
-            <p className="text-xs font-medium text-accent">Phase 9 · Connexions sociales</p>
+            <p className="text-xs font-medium text-accent">Phase 10 · Analytics</p>
             <h1 className="mt-1 text-lg font-semibold tracking-tight">AI Social Studio</h1>
           </div>
 
@@ -267,6 +270,7 @@ export function App() {
           {page === 'image' && <ImageStudioPage />}
           {page === 'publishing' && <PublishingPage />}
           {page === 'calendar' && <CalendarPage />}
+          {page === 'analytics' && <AnalyticsPage />}
           {page === 'system' && <SystemPage />}
         </div>
       </main>

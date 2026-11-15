@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { AnalyticsController } from '../analytics/analytics.controller.js';
+import { AnalyticsService } from '../analytics/analytics.service.js';
 import { AuthController } from '../auth/auth.controller.js';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { AuthService } from '../auth/auth.service.js';
@@ -33,6 +35,7 @@ import { VideoProjectsController } from '../video/video-projects.controller.js';
     MediaController,
     SocialAccountsController,
     OAuthCallbackController,
+    AnalyticsController,
     VideoProjectsController,
     ContentGenerationController,
     ContentController,
@@ -52,6 +55,7 @@ import { VideoProjectsController } from '../video/video-projects.controller.js';
     PublishingScheduler,
     ImageService,
     OAuthService,
+    AnalyticsService,
   ],
   exports: [AuthGuard],
 })
