@@ -8,8 +8,9 @@ import { MediaPage } from './pages/MediaPage';
 import { OrganizationsPage } from './pages/OrganizationsPage';
 import { SocialAccountsPage } from './pages/SocialAccountsPage';
 import { SystemPage } from './pages/SystemPage';
+import { VideoStudioPage } from './pages/VideoStudioPage';
 
-type Page = 'dashboard' | 'organizations' | 'brands' | 'media' | 'social' | 'system';
+type Page = 'dashboard' | 'organizations' | 'brands' | 'media' | 'social' | 'video' | 'system';
 
 const navigation: { id: Page; label: string }[] = [
   { id: 'dashboard', label: 'Tableau de bord' },
@@ -17,6 +18,7 @@ const navigation: { id: Page; label: string }[] = [
   { id: 'brands', label: 'Marques' },
   { id: 'media', label: 'Médiathèque' },
   { id: 'social', label: 'Comptes sociaux' },
+  { id: 'video', label: 'AI Video Studio' },
   { id: 'system', label: 'État du système' },
 ];
 
@@ -132,7 +134,7 @@ export function App() {
       <aside className="border-b border-border bg-surface lg:border-b-0 lg:border-r">
         <div className="flex h-full flex-col gap-6 p-5">
           <div>
-            <p className="text-xs font-medium text-accent">Phase 2 · Connexions sociales</p>
+            <p className="text-xs font-medium text-accent">Phase 3 · AI Video Studio</p>
             <h1 className="mt-1 text-lg font-semibold tracking-tight">AI Social Studio</h1>
           </div>
 
@@ -208,6 +210,7 @@ export function App() {
           {page === 'brands' && <BrandsPage />}
           {page === 'media' && <MediaPage />}
           {page === 'social' && <SocialAccountsPage />}
+          {page === 'video' && <VideoStudioPage />}
           {page === 'system' && <SystemPage />}
         </div>
       </main>

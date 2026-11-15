@@ -10,7 +10,10 @@ import {
   memberSchema,
   organizationSchema,
   socialAccountSchema,
+  subtitleTrackSchema,
   userSchema,
+  videoProjectDetailSchema,
+  videoProjectSchema,
   z,
   type AcceptedInvitation,
   type AuthResponse,
@@ -29,9 +32,15 @@ import {
   type Member,
   type Organization,
   type RegisterInput,
+  type CreateVideoProjectInput,
   type SocialAccount,
+  type SubtitleStyle,
+  type SubtitleTrack,
   type UpdateSocialAccountInput,
+  type UpdateVideoProjectInput,
   type User,
+  type VideoProject,
+  type VideoProjectDetail,
 } from '@ass/shared';
 
 export const API_URL = (import.meta.env.VITE_API_URL ?? 'http://localhost:3000').replace(/\/$/, '');
@@ -171,6 +180,25 @@ export const api = {
       }),
     accept: (token: string): Promise<AcceptedInvitation> =>
       post('/invitations/accept', acceptedInvitationSchema, { token }),
+  },
+
+  videoProjects: {
+    list: (): Promise<VideoProject[]> => request('/video-projects', z.array(videoProjectSchema)),
+    create: (body: CreateVideoProjectInput): Promise<VideoProject> =>
+      post('/video-projects', videoProjectSchema, body),
+    detail: (id: string): Promise<VideoProjectDetail> =>
+      request(`/video-projects/${id}`, videoProjectDetailSchema),
+    update: (id: string, body: UpdateVideoProjectInput): Promise<VideoProjectDetail> =>
+      request(`/video-projects/${id}`, videoProjectDetailSchema, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+    remove: (id: string): Promise<unknown> =>
+      request(`/video-projects/${id}`, z.unknown(), { method: 'DELETE' }),
+    transcribe: (id: string): Promise<VideoProjectDetail> =>
+      post(`/video-projects/${id}/transcribe`, videoProjectDetailSchema, {}),
+    subtitles: (id: string, style: SubtitleStyle): Promise<SubtitleTrack> =>
+      post(`/video-projects/${id}/subtitles`, subtitleTrackSchema, { style }),
   },
 
   dashboard: (): Promise<DashboardStats> => request('/dashboard', dashboardStatsSchema),

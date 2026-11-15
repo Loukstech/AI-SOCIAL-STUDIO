@@ -34,6 +34,7 @@ export function DashboardPage({ onNavigate }: { onNavigate: (page: string) => vo
         <Stat label="Médias" value={stats?.media ?? '—'} />
         <Stat label="Membres" value={stats?.members ?? '—'} />
         <Stat label="Comptes sociaux" value={stats?.socialAccounts ?? '—'} />
+        <Stat label="Projets vidéo" value={stats?.videoProjects ?? '—'} />
         <Stat label="Invitations en attente" value={stats?.pendingInvitations ?? '—'} />
       </div>
 
@@ -62,6 +63,11 @@ export function DashboardPage({ onNavigate }: { onNavigate: (page: string) => vo
             <li>
               <button className="text-accent hover:underline" onClick={() => onNavigate('social')}>
                 → Connecter un compte social
+              </button>
+            </li>
+            <li>
+              <button className="text-accent hover:underline" onClick={() => onNavigate('video')}>
+                → Lancer un projet vidéo et ses sous-titres
               </button>
             </li>
           </ul>

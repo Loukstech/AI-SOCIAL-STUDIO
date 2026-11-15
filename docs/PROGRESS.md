@@ -88,3 +88,22 @@ Détail : [PHASE2.md](PHASE2.md).
 ### Prochaine étape
 
 Phase 3 — AI Video Studio. Préalables : identifiants d'application OAuth pour les plateformes, fournisseur d'IA, et activation du stockage objet (R2 ou Supabase Storage) pour les fichiers binaires.
+
+---
+
+## Phase 3 — AI Video Studio (15 novembre 2026)
+
+**Statut : TERMINÉE.**
+
+- Modèles `VideoProject`, `Transcript` et `SubtitleTrack`, migration `20261115190000_phase3_video_studio` appliquée sur Neon.
+- Routes `/video-projects` : liste, création, détail, mise à jour, suppression logique, transcription et génération de sous-titres.
+- Transcription via `AI_PROVIDER=mock` (déterministe, sans appel externe) ; `openai` est reconnu mais renvoie `503` tant que l'adaptateur n'existe pas — pas de fausse promesse.
+- Sous-titres SRT dans trois styles (`PROFESSIONAL`, `MINIMAL`, `KARAOKE`) produits par un module pur `apps/api/src/video/subtitles.ts`, couvert par 6 tests unitaires.
+- Interface : page « AI Video Studio » (création, détail, transcription, styles, aperçu, copie et téléchargement du `.srt`), compteur « Projets vidéo » sur le tableau de bord.
+- Qualité : 24 tests unitaires, `pnpm test:phase3` (52 vérifications E2E), lint/typecheck/build/format verts.
+
+Détail : [PHASE3.md](PHASE3.md).
+
+### Prochaine étape
+
+Phase 4 — Production et rendu. Préalables : worker de rendu (ffmpeg), stockage objet activé, adaptateur de transcription réel, identifiants OAuth des plateformes.

@@ -10,6 +10,8 @@ import { InvitationAcceptanceController, InvitationsController } from './invitat
 import { MediaController } from './media.controller.js';
 import { OrganizationsController } from './organizations.controller.js';
 import { SocialAccountsController } from './social-accounts.controller.js';
+import { VideoPipelineService } from '../video/video-pipeline.service.js';
+import { VideoProjectsController } from '../video/video-projects.controller.js';
 
 @Module({
   controllers: [
@@ -20,9 +22,10 @@ import { SocialAccountsController } from './social-accounts.controller.js';
     BrandsController,
     MediaController,
     SocialAccountsController,
+    VideoProjectsController,
     DashboardController,
   ],
-  providers: [Db, AuthService, AuthGuard, Reflector],
+  providers: [Db, AuthService, AuthGuard, Reflector, VideoPipelineService],
   exports: [AuthGuard],
 })
 export class SaasModule {}

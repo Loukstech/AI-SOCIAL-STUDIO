@@ -45,6 +45,26 @@ enum SocialAccountStatus {
   ERROR
 }
 
+enum VideoProjectStatus {
+  DRAFT
+  TRANSCRIBING
+  TRANSCRIBED
+  FAILED
+}
+
+enum TranscriptStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum SubtitleStyle {
+  PROFESSIONAL
+  MINIMAL
+  KARAOKE
+}
+
 model User {
   id           String    @id @default(uuid())
   email        String    @unique
@@ -86,6 +106,7 @@ model Organization {
   auditLogs      AuditLog[]
   socialAccounts SocialAccount[]
   invitations    Invitation[]
+  videoProjects  VideoProject[]
 
   @@index([deletedAt])
 }
@@ -116,6 +137,7 @@ model Brand {
   organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   media          MediaAsset[]
   socialAccounts SocialAccount[]
+  videoProjects  VideoProject[]
 
   @@unique([organizationId, name])
   @@index([organizationId])
@@ -202,4 +224,58 @@ model Invitation {
 
   @@index([organizationId, email])
   @@index([expiresAt])
+}
+
+/// Projet vidéo : la source, sa transcription et ses pistes de sous-titres.
+/// Le rendu ffmpeg arrivera avec un worker dédié et le stockage objet.
+model VideoProject {
+  id              String             @id @default(uuid())
+  organizationId  String
+  brandId         String?
+  name            String
+  description     String?
+  sourceUrl       String?
+  language        String             @default("fr")
+  durationSeconds Int?
+  status          VideoProjectStatus @default(DRAFT)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+  deletedAt       DateTime?
+  organization    Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  brand           Brand?             @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  transcript      Transcript?
+  subtitles       SubtitleTrack[]
+
+  @@index([organizationId, createdAt])
+  @@index([brandId])
+  @@index([deletedAt])
+}
+
+model Transcript {
+  id        String           @id @default(uuid())
+  projectId String           @unique
+  status    TranscriptStatus @default(PENDING)
+  language  String           @default("fr")
+  provider  String?
+  text      String?
+  segments  Json?
+  error     String?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  project   VideoProject     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model SubtitleTrack {
+  id        String        @id @default(uuid())
+  projectId String
+  style     SubtitleStyle
+  language  String        @default("fr")
+  content   String
+  cueCount  Int           @default(0)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  project   VideoProject  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, style, language])
+  @@index([projectId])
 }

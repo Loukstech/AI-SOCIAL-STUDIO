@@ -139,6 +139,7 @@ export const dashboardStatsSchema = z.object({
   members: z.number(),
   socialAccounts: z.number(),
   pendingInvitations: z.number(),
+  videoProjects: z.number(),
   recentActivity: z.array(
     z.object({
       id: z.string(),

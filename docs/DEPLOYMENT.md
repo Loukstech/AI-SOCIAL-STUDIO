@@ -1,4 +1,4 @@
-# État du déploiement (Phase 1)
+# État du déploiement (Phase 3)
 
 ## Services en ligne
 
@@ -38,6 +38,8 @@ AUTH_SECRET=<openssl rand -base64 48>
 `AUTH_SECRET` signe les jetons de session (≥ 16 caractères) et est **obligatoire en production**.
 
 En production ces valeurs sont injectées par Render, pas par un fichier. Le jeu complet attendu sur Render est : `NODE_ENV`, `CORS_ORIGINS`, `DATABASE_URL`, `REDIS_URL`, `AUTH_SECRET`, `WEB_APP_URL` (base des liens d'invitation, `https://ai-social-studio.pages.dev`). `INVITATION_TTL_HOURS` est optionnel (168 h par défaut).
+
+`AI_PROVIDER` vaut `mock` par défaut : la transcription de démonstration fonctionne sans variable supplémentaire. `OPENAI_API_KEY` n'est utile qu'une fois l'adaptateur réel écrit (Phase 4).
 
 > ⚠️ **Piège Render :** `PUT /v1/services/{id}/env-vars` **remplace** l'intégralité de la liste. Pour ajouter une seule variable, utiliser `PUT /v1/services/{id}/env-vars/{key}` ou renvoyer la liste complète. Une mise à jour partielle vide les autres variables : le déploiement suivant construit correctement mais échoue au health check (`update_failed`), car `parseEnv` exige `DATABASE_URL` et `REDIS_URL` en production.
 
@@ -149,6 +151,7 @@ pnpm lint && pnpm typecheck && pnpm test && pnpm build && pnpm format:check
 pnpm test:online                  # frontend, API, PostgreSQL, Redis, CORS, headers
 pnpm test:phase1                  # parcours E2E : compte, organisation, marques, médias
 pnpm test:phase2                  # parcours E2E : comptes sociaux chiffrés, invitations, RBAC
+pnpm test:phase3                  # parcours E2E : projets vidéo, transcription, sous-titres SRT
 
 # Déploiement
 pnpm --filter @ass/web build && npx wrangler pages deploy apps/web/dist --project-name ai-social-studio --branch main

@@ -33,6 +33,9 @@ const envSchema = z
     // Base des liens d'invitation envoyés aux futurs membres.
     WEB_APP_URL: z.string().url().default('http://localhost:5173'),
     INVITATION_TTL_HOURS: z.coerce.number().int().min(1).max(720).default(168),
+    // Fournisseur de transcription. `mock` = démonstration déterministe, sans appel externe.
+    AI_PROVIDER: z.enum(['mock', 'openai']).default('mock'),
+    OPENAI_API_KEY: z.string().min(10).optional(),
   })
   .superRefine((env, ctx) => {
     // En développement, l'API démarre sans base ni Redis et le signale dans /health.

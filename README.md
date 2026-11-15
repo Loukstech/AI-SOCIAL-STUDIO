@@ -4,7 +4,7 @@ Studio de production et de distribution de contenus assisté par IA : une idée 
 
 Le document de référence est [AI_Social_Studio_Cahier_des_Charges.md](AI_Social_Studio_Cahier_des_Charges.md). L'avancement réel est tenu dans [docs/PROGRESS.md](docs/PROGRESS.md).
 
-**État actuel : Phase 2 (Connexions sociales).** Comptes, organisations multi-tenant, droits par rôle, marques, médiathèque (métadonnées), comptes sociaux avec jetons chiffrés et invitations de membres sont opérationnels. Le parcours OAuth des plateformes, l'IA et la publication arrivent aux phases suivantes.
+**État actuel : Phase 3 (AI Video Studio).** Comptes, organisations multi-tenant, droits par rôle, marques, médiathèque (métadonnées), comptes sociaux avec jetons chiffrés, invitations de membres, projets vidéo avec transcription et sous-titres SRT sont opérationnels. Le parcours OAuth des plateformes, le rendu ffmpeg et la publication arrivent aux phases suivantes.
 
 ## Démarrage rapide
 
@@ -28,6 +28,7 @@ Le fichier `.env.local` contient tous les jetons de gestion (Neon, Upstash, Rend
 | `pnpm test:online`                   | Vérifie la production (frontend + API + CORS)       |
 | `pnpm test:phase1`                   | Parcours E2E Phase 1 (compte, marques, médias)      |
 | `pnpm test:phase2`                   | Parcours E2E Phase 2 (comptes sociaux, invitations) |
+| `pnpm test:phase3`                   | Parcours E2E Phase 3 (projets vidéo, sous-titres)   |
 | `pnpm lint` / `pnpm typecheck`       | Analyse statique                                    |
 | `pnpm format`                        | Formate le code avec Prettier                       |
 | `pnpm db:migrate` / `pnpm db:deploy` | Migrations Prisma (développement / production)      |
