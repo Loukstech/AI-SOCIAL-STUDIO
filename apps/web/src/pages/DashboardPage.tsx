@@ -35,6 +35,7 @@ export function DashboardPage({ onNavigate }: { onNavigate: (page: string) => vo
         <Stat label="Membres" value={stats?.members ?? '—'} />
         <Stat label="Comptes sociaux" value={stats?.socialAccounts ?? '—'} />
         <Stat label="Projets vidéo" value={stats?.videoProjects ?? '—'} />
+        <Stat label="Contenus générés" value={stats?.contentProjects ?? '—'} />
         <Stat label="Invitations en attente" value={stats?.pendingInvitations ?? '—'} />
       </div>
 
@@ -68,6 +69,11 @@ export function DashboardPage({ onNavigate }: { onNavigate: (page: string) => vo
             <li>
               <button className="text-accent hover:underline" onClick={() => onNavigate('video')}>
                 → Lancer un projet vidéo et ses sous-titres
+              </button>
+            </li>
+            <li>
+              <button className="text-accent hover:underline" onClick={() => onNavigate('content')}>
+                → Générer un contenu multiréseaux
               </button>
             </li>
           </ul>

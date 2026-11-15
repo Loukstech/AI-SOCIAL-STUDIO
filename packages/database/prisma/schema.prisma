@@ -69,6 +69,38 @@ enum SubtitleStyle {
   PODCAST
 }
 
+/// Types de contenus du AI Content Studio (§6.2).
+enum ContentType {
+  PROMO
+  ANNOUNCEMENT
+  PROMOTION
+  COMPANY_INTRO
+  QUOTE
+  TIP
+  TUTORIAL
+  TESTIMONIAL
+  PRODUCT_LAUNCH
+  EVENT
+  SPECIAL_OFFER
+  EDUCATIONAL
+  VIDEO_SCRIPT
+  CAROUSEL
+}
+
+enum ContentTone {
+  PROFESSIONAL
+  DYNAMIC
+  FRIENDLY
+  EXPERT
+  INSPIRING
+  PLAYFUL
+}
+
+enum ContentLanguage {
+  FR
+  EN
+}
+
 model User {
   id           String    @id @default(uuid())
   email        String    @unique
@@ -111,6 +143,7 @@ model Organization {
   socialAccounts SocialAccount[]
   invitations    Invitation[]
   videoProjects  VideoProject[]
+  contentProjects ContentProject[]
 
   @@index([deletedAt])
 }
@@ -142,6 +175,7 @@ model Brand {
   media          MediaAsset[]
   socialAccounts SocialAccount[]
   videoProjects  VideoProject[]
+  contentProjects ContentProject[]
 
   @@unique([organizationId, name])
   @@index([organizationId])
@@ -304,5 +338,53 @@ model SubtitleTrack {
   project   VideoProject  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, style, language])
+  @@index([projectId])
+}
+
+/// Brief éditorial saisi par l'utilisateur, et ses déclinaisons par plateforme.
+/// Le fournisseur est tracé : `mock` (déterministe) ou un modèle réel en Phase 6.
+model ContentProject {
+  id             String          @id @default(uuid())
+  organizationId String
+  brandId        String?
+  brief          String
+  subject        String?
+  objective      String?
+  audience       String?
+  tone           ContentTone     @default(PROFESSIONAL)
+  contentType    ContentType     @default(PROMO)
+  language       ContentLanguage @default(FR)
+  provider       String          @default("mock")
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  deletedAt      DateTime?
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  brand          Brand?          @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  variants       ContentVariant[]
+
+  @@index([organizationId, createdAt])
+  @@index([deletedAt])
+}
+
+/// Variante propre à une plateforme : éditable indépendamment (§6.3).
+model ContentVariant {
+  id            String          @id @default(uuid())
+  projectId     String
+  platform      SocialPlatform
+  /// Une même plateforme peut porter une version FR et une version EN.
+  language      ContentLanguage @default(FR)
+  title         String?
+  body          String
+  hashtags      String[]        @default([])
+  callToAction  String?
+  charCount     Int             @default(0)
+  /// Dépassements et écarts aux règles de la plateforme, calculés à la génération.
+  warnings      String[]        @default([])
+  edited        Boolean         @default(false)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  project       ContentProject  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, platform, language])
   @@index([projectId])
 }

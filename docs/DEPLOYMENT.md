@@ -1,4 +1,4 @@
-# État du déploiement (Phase 4)
+# État du déploiement (Phase 5)
 
 ## Services en ligne
 
@@ -153,6 +153,7 @@ pnpm test:phase1                  # parcours E2E : compte, organisation, marques
 pnpm test:phase2                  # parcours E2E : comptes sociaux chiffrés, invitations, RBAC
 pnpm test:phase3                  # parcours E2E : projets vidéo, transcription, sous-titres SRT
 pnpm test:phase4                  # parcours E2E : édition, 7 styles, exports, clips
+pnpm test:phase5                  # parcours E2E : génération de contenus, assistant
 
 # Déploiement
 pnpm --filter @ass/web build && npx wrangler pages deploy apps/web/dist --project-name ai-social-studio --branch main

@@ -10,6 +10,8 @@ import { InvitationAcceptanceController, InvitationsController } from './invitat
 import { MediaController } from './media.controller.js';
 import { OrganizationsController } from './organizations.controller.js';
 import { SocialAccountsController } from './social-accounts.controller.js';
+import { ContentController, ContentGenerationController } from '../content/content.controller.js';
+import { ContentService } from '../content/content.service.js';
 import { VideoPipelineService } from '../video/video-pipeline.service.js';
 import { VideoProjectsController } from '../video/video-projects.controller.js';
 
@@ -23,9 +25,11 @@ import { VideoProjectsController } from '../video/video-projects.controller.js';
     MediaController,
     SocialAccountsController,
     VideoProjectsController,
+    ContentGenerationController,
+    ContentController,
     DashboardController,
   ],
-  providers: [Db, AuthService, AuthGuard, Reflector, VideoPipelineService],
+  providers: [Db, AuthService, AuthGuard, Reflector, VideoPipelineService, ContentService],
   exports: [AuthGuard],
 })
 export class SaasModule {}

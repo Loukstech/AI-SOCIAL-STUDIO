@@ -22,6 +22,7 @@ export class DashboardController {
       socialAccounts,
       pendingInvitations,
       videoProjects,
+      contentProjects,
       activity,
     ] = await Promise.all([
       db.member.count({ where: { userId } }),
@@ -49,6 +50,9 @@ export class DashboardController {
         ? db.videoProject.count({ where: { organizationId: orgId, deletedAt: null } })
         : Promise.resolve(0),
       orgId
+        ? db.contentProject.count({ where: { organizationId: orgId, deletedAt: null } })
+        : Promise.resolve(0),
+      orgId
         ? db.auditLog.findMany({
             where: { organizationId: orgId },
             orderBy: { createdAt: 'desc' },
@@ -64,6 +68,7 @@ export class DashboardController {
       socialAccounts,
       pendingInvitations,
       videoProjects,
+      contentProjects,
       recentActivity: activity.map((log) => ({
         id: log.id,
         action: log.action,

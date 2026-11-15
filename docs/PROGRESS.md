@@ -125,4 +125,23 @@ Détail : [PHASE4.md](PHASE4.md).
 
 ### Prochaine étape
 
-Phase 5 — Production et rendu. Préalables : worker de rendu (ffmpeg), stockage objet activé, adaptateur de transcription réel, identifiants OAuth des plateformes.
+Phase 5 — AI Content Studio (voir ci-dessous).
+
+---
+
+## Phase 5 — AI Content Studio (15 novembre 2026)
+
+**Statut : TERMINÉE.**
+
+- Génération par prompt avec extraction du sujet, de l'objectif et du public (§6.1) ; 14 types de contenus et 6 tons (§6.2).
+- Une variante par plateforme, calibrée sur les limites réelles des 8 réseaux (§6.3), avec compteur de caractères incluant les hashtags et avertissements de dépassement.
+- Assistant rédactionnel à neuf actions (§6.4), dont la traduction qui crée la version FR ou EN côte à côte.
+- Modèles `ContentProject` et `ContentVariant` (avec `language`), migrations `20261115210000_phase5_content_studio` et `20261115211000_phase5_variant_language` appliquées sur Neon.
+- Interface : page « AI Content Studio » (brief, type, ton, langue, marque, réseaux, variantes éditables, assistant, copie), compteur « Contenus générés » sur le tableau de bord.
+- Qualité : 70 tests unitaires (dont 30 sur le Content Studio), `pnpm test:phase5` (77 vérifications E2E), lint/typecheck/build/format verts.
+
+Détail : [PHASE5.md](PHASE5.md).
+
+### Prochaine étape
+
+Phase 6 — Publishing Center et calendrier. Préalables : identifiants OAuth des plateformes pour publier réellement, stockage objet pour les médias.

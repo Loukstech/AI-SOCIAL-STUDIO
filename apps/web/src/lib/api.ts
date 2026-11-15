@@ -3,6 +3,8 @@ import {
   authResponseSchema,
   brandSchema,
   clipSuggestionSchema,
+  contentProjectDetailSchema,
+  contentProjectSchema,
   createdInvitationSchema,
   dashboardStatsSchema,
   healthResponseSchema,
@@ -21,6 +23,8 @@ import {
   type AuthResponse,
   type Brand,
   type ClipSuggestion,
+  type ContentProject,
+  type ContentProjectDetail,
   type CreateBrandInput,
   type CreateInvitationInput,
   type CreateMediaInput,
@@ -28,6 +32,7 @@ import {
   type CreateSocialAccountInput,
   type CreatedInvitation,
   type DashboardStats,
+  type GenerateContentInput,
   type HealthResponse,
   type Invitation,
   type LoginInput,
@@ -35,6 +40,7 @@ import {
   type Member,
   type Organization,
   type RegisterInput,
+  type RewriteVariantInput,
   type CreateVideoProjectInput,
   type SocialAccount,
   type SubtitleExport,
@@ -42,6 +48,7 @@ import {
   type SubtitleStyle,
   type SubtitleTrack,
   type UpdateClipInput,
+  type UpdateVariantInput,
   type UpdateSocialAccountInput,
   type UpdateTranscriptInput,
   type UpdateVideoProjectInput,
@@ -174,6 +181,37 @@ export const api = {
       post(`/social-accounts/${id}/sync`, socialAccountSchema, {}),
     remove: (id: string): Promise<unknown> =>
       request(`/social-accounts/${id}`, z.unknown(), { method: 'DELETE' }),
+  },
+
+  contentGeneration: {
+    generate: (body: GenerateContentInput): Promise<ContentProjectDetail> =>
+      post('/ai/content/generate', contentProjectDetailSchema, body),
+  },
+
+  content: {
+    list: (): Promise<ContentProject[]> => request('/content', z.array(contentProjectSchema)),
+    detail: (id: string): Promise<ContentProjectDetail> =>
+      request(`/content/${id}`, contentProjectDetailSchema),
+    updateVariant: (
+      id: string,
+      variantId: string,
+      body: UpdateVariantInput,
+    ): Promise<ContentProjectDetail> =>
+      request(`/content/${id}/variants/${variantId}`, contentProjectDetailSchema, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+    rewrite: (
+      id: string,
+      variantId: string,
+      body: RewriteVariantInput,
+    ): Promise<ContentProjectDetail> =>
+      request(`/content/${id}/variants/${variantId}/rewrite`, contentProjectDetailSchema, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+    remove: (id: string): Promise<unknown> =>
+      request(`/content/${id}`, z.unknown(), { method: 'DELETE' }),
   },
 
   invitations: {
