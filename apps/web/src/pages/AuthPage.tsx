@@ -139,8 +139,8 @@ export function AuthPage({ onAuthenticated }: Props) {
       </section>
 
       <p className="text-center text-xs text-text-muted">
-        Vos données sont isolées par organisation. Les comptes sociaux et l'IA arrivent aux phases
-        suivantes.
+        Vos données sont isolées par organisation. Connectez vos comptes sociaux dès maintenant ;
+        les modules IA et publication arrivent aux phases suivantes.
       </p>
     </main>
   );

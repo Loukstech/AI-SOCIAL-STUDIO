@@ -6,15 +6,20 @@ import { AuthService } from '../auth/auth.service.js';
 import { Db } from '../common/validation.js';
 import { BrandsController } from './brands.controller.js';
 import { DashboardController } from './dashboard.controller.js';
+import { InvitationAcceptanceController, InvitationsController } from './invitations.controller.js';
 import { MediaController } from './media.controller.js';
 import { OrganizationsController } from './organizations.controller.js';
+import { SocialAccountsController } from './social-accounts.controller.js';
 
 @Module({
   controllers: [
     AuthController,
     OrganizationsController,
+    InvitationsController,
+    InvitationAcceptanceController,
     BrandsController,
     MediaController,
+    SocialAccountsController,
     DashboardController,
   ],
   providers: [Db, AuthService, AuthGuard, Reflector],

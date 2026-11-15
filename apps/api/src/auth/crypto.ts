@@ -1,4 +1,6 @@
 import {
+  createCipheriv,
+  createDecipheriv,
   createHash,
   createHmac,
   randomBytes,
@@ -91,6 +93,54 @@ export function verifyToken(token: string, secret: string): TokenPayload | null 
 /** Empreinte stockée en base : le jeton brut ne quitte jamais le serveur. */
 export function tokenFingerprint(token: string): string {
   return createHash('sha256').update(token).digest('hex');
+}
+
+// --- Chiffrement des secrets tiers (jetons OAuth) ---
+
+const SECRET_VERSION = 'v1';
+const IV_LENGTH = 12;
+
+/** Clé AES-256 dérivée du secret applicatif : un seul secret à gérer. */
+function secretKey(secret: string): Buffer {
+  return createHash('sha256').update(`ass.secret.${SECRET_VERSION}:${secret}`).digest();
+}
+
+/**
+ * Chiffre une valeur sensible avec AES-256-GCM.
+ * Format : `v1.<iv>.<tag>.<chiffré>` (base64url), le tag garantit l'intégrité.
+ */
+export function encryptSecret(plain: string, secret: string): string {
+  const iv = randomBytes(IV_LENGTH);
+  const cipher = createCipheriv('aes-256-gcm', secretKey(secret), iv);
+  const encrypted = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]);
+  return [
+    SECRET_VERSION,
+    iv.toString('base64url'),
+    cipher.getAuthTag().toString('base64url'),
+    encrypted.toString('base64url'),
+  ].join('.');
+}
+
+/** Déchiffre une valeur produite par `encryptSecret` ; `null` si corrompue ou clé erronée. */
+export function decryptSecret(payload: string, secret: string): string | null {
+  const parts = payload.split('.');
+  if (parts.length !== 4) return null;
+  const [version, ivPart, tagPart, dataPart] = parts as [string, string, string, string];
+  if (version !== SECRET_VERSION) return null;
+  try {
+    const decipher = createDecipheriv(
+      'aes-256-gcm',
+      secretKey(secret),
+      Buffer.from(ivPart, 'base64url'),
+    );
+    decipher.setAuthTag(Buffer.from(tagPart, 'base64url'));
+    return Buffer.concat([
+      decipher.update(Buffer.from(dataPart, 'base64url')),
+      decipher.final(),
+    ]).toString('utf8');
+  } catch {
+    return null;
+  }
 }
 
 export { SCRYPT_COST };

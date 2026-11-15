@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  decryptSecret,
+  encryptSecret,
   hashPassword,
   signToken,
   tokenFingerprint,
@@ -48,6 +50,33 @@ describe('crypto', () => {
     expect(verifyToken(signToken(expired, SECRET), SECRET)).toBeNull();
     const invalid = { sub: '', sid: 'session-1', iat: 1, exp: future() };
     expect(verifyToken(signToken(invalid, SECRET), SECRET)).toBeNull();
+  });
+
+  it('chiffre et déchiffre un jeton OAuth en AES-256-GCM', () => {
+    const token = 'EAAG1234567890abcdef';
+    const sealed = encryptSecret(token, SECRET);
+    expect(sealed.startsWith('v1.')).toBe(true);
+    expect(sealed).not.toContain(token);
+    expect(decryptSecret(sealed, SECRET)).toBe(token);
+  });
+
+  it('utilise un IV aléatoire : deux chiffrements du même secret diffèrent', () => {
+    const first = encryptSecret('meme-valeur', SECRET);
+    const second = encryptSecret('meme-valeur', SECRET);
+    expect(first).not.toBe(second);
+    expect(decryptSecret(first, SECRET)).toBe('meme-valeur');
+    expect(decryptSecret(second, SECRET)).toBe('meme-valeur');
+  });
+
+  it('refuse un chiffré altéré, une mauvaise clé ou un format inconnu', () => {
+    const sealed = encryptSecret('jeton-sensible', SECRET);
+    const parts = sealed.split('.');
+    const tampered = [parts[0], parts[1], parts[2], `${parts[3]}AA`].join('.');
+    expect(decryptSecret(tampered, SECRET)).toBeNull();
+    expect(decryptSecret(sealed, 'une-autre-cle-suffisamment-longue')).toBeNull();
+    expect(decryptSecret('v2.a.b.c', SECRET)).toBeNull();
+    expect(decryptSecret('nimportequoi', SECRET)).toBeNull();
+    expect(decryptSecret('', SECRET)).toBeNull();
   });
 
   it('produit une empreinte SHA-256 stable, distincte du jeton brut', () => {

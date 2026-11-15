@@ -28,11 +28,13 @@ export function DashboardPage({ onNavigate }: { onNavigate: (page: string) => vo
         description="Vue d'ensemble de votre espace de travail."
       />
       {error && <Alert>{error}</Alert>}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Stat label="Organisations" value={stats?.organizations ?? '—'} />
         <Stat label="Marques" value={stats?.brands ?? '—'} />
         <Stat label="Médias" value={stats?.media ?? '—'} />
         <Stat label="Membres" value={stats?.members ?? '—'} />
+        <Stat label="Comptes sociaux" value={stats?.socialAccounts ?? '—'} />
+        <Stat label="Invitations en attente" value={stats?.pendingInvitations ?? '—'} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -55,6 +57,11 @@ export function DashboardPage({ onNavigate }: { onNavigate: (page: string) => vo
             <li>
               <button className="text-accent hover:underline" onClick={() => onNavigate('media')}>
                 → Ajouter un média à la bibliothèque
+              </button>
+            </li>
+            <li>
+              <button className="text-accent hover:underline" onClick={() => onNavigate('social')}>
+                → Connecter un compte social
               </button>
             </li>
           </ul>

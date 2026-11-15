@@ -1,25 +1,36 @@
 import {
+  acceptedInvitationSchema,
   authResponseSchema,
   brandSchema,
+  createdInvitationSchema,
   dashboardStatsSchema,
   healthResponseSchema,
+  invitationSchema,
   mediaAssetSchema,
   memberSchema,
   organizationSchema,
+  socialAccountSchema,
   userSchema,
   z,
+  type AcceptedInvitation,
   type AuthResponse,
   type Brand,
   type CreateBrandInput,
+  type CreateInvitationInput,
   type CreateMediaInput,
   type CreateOrganizationInput,
+  type CreateSocialAccountInput,
+  type CreatedInvitation,
   type DashboardStats,
   type HealthResponse,
+  type Invitation,
   type LoginInput,
   type MediaAsset,
   type Member,
   type Organization,
   type RegisterInput,
+  type SocialAccount,
+  type UpdateSocialAccountInput,
   type User,
 } from '@ass/shared';
 
@@ -132,6 +143,34 @@ export const api = {
     create: (body: CreateMediaInput): Promise<MediaAsset> => post('/media', mediaAssetSchema, body),
     remove: (id: string): Promise<unknown> =>
       request(`/media/${id}`, z.unknown(), { method: 'DELETE' }),
+  },
+
+  socialAccounts: {
+    list: (): Promise<SocialAccount[]> => request('/social-accounts', z.array(socialAccountSchema)),
+    create: (body: CreateSocialAccountInput): Promise<SocialAccount> =>
+      post('/social-accounts', socialAccountSchema, body),
+    update: (id: string, body: UpdateSocialAccountInput): Promise<SocialAccount> =>
+      request(`/social-accounts/${id}`, socialAccountSchema, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+    sync: (id: string): Promise<SocialAccount> =>
+      post(`/social-accounts/${id}/sync`, socialAccountSchema, {}),
+    remove: (id: string): Promise<unknown> =>
+      request(`/social-accounts/${id}`, z.unknown(), { method: 'DELETE' }),
+  },
+
+  invitations: {
+    list: (organizationId: string): Promise<Invitation[]> =>
+      request(`/organizations/${organizationId}/invitations`, z.array(invitationSchema)),
+    create: (organizationId: string, body: CreateInvitationInput): Promise<CreatedInvitation> =>
+      post(`/organizations/${organizationId}/invitations`, createdInvitationSchema, body),
+    revoke: (organizationId: string, invitationId: string): Promise<unknown> =>
+      request(`/organizations/${organizationId}/invitations/${invitationId}`, z.unknown(), {
+        method: 'DELETE',
+      }),
+    accept: (token: string): Promise<AcceptedInvitation> =>
+      post('/invitations/accept', acceptedInvitationSchema, { token }),
   },
 
   dashboard: (): Promise<DashboardStats> => request('/dashboard', dashboardStatsSchema),

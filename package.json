@@ -15,6 +15,7 @@
     "test": "turbo run test",
     "test:online": "node scripts/smoke-online.mjs",
     "test:phase1": "node scripts/smoke-phase1.mjs",
+    "test:phase2": "node scripts/smoke-phase2.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:generate": "pnpm --filter @ass/database generate",

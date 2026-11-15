@@ -6,15 +6,17 @@ import { BrandsPage } from './pages/BrandsPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { MediaPage } from './pages/MediaPage';
 import { OrganizationsPage } from './pages/OrganizationsPage';
+import { SocialAccountsPage } from './pages/SocialAccountsPage';
 import { SystemPage } from './pages/SystemPage';
 
-type Page = 'dashboard' | 'organizations' | 'brands' | 'media' | 'system';
+type Page = 'dashboard' | 'organizations' | 'brands' | 'media' | 'social' | 'system';
 
 const navigation: { id: Page; label: string }[] = [
   { id: 'dashboard', label: 'Tableau de bord' },
   { id: 'organizations', label: 'Organisations' },
   { id: 'brands', label: 'Marques' },
   { id: 'media', label: 'Médiathèque' },
+  { id: 'social', label: 'Comptes sociaux' },
   { id: 'system', label: 'État du système' },
 ];
 
@@ -24,6 +26,7 @@ export function App() {
   const [page, setPage] = useState<Page>('dashboard');
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [activeOrg, setActiveOrg] = useState<string | null>(session.organizationId);
+  const [notice, setNotice] = useState('');
 
   const refreshOrganizations = useCallback(async () => {
     try {
@@ -65,6 +68,35 @@ export function App() {
     };
   }, [refreshOrganizations]);
 
+  // Lien d'invitation : ?invitation=<jeton>. Accepté une fois la session ouverte.
+  useEffect(() => {
+    if (!user) return;
+    const token = new URLSearchParams(window.location.search).get('invitation');
+    if (!token) return;
+    let active = true;
+    api.invitations
+      .accept(token)
+      .then(async (accepted) => {
+        if (!active) return;
+        window.history.replaceState({}, '', window.location.pathname);
+        setNotice(
+          `Invitation acceptée : vous êtes ${accepted.role} de « ${accepted.organizationName} ».`,
+        );
+        await refreshOrganizations();
+        setActiveOrganization(accepted.organizationId);
+        setActiveOrg(accepted.organizationId);
+        setPage('dashboard');
+      })
+      .catch((cause: unknown) => {
+        if (active) {
+          setNotice(cause instanceof Error ? cause.message : 'Invitation invalide');
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [user, refreshOrganizations]);
+
   const onAuthenticated = useCallback(async () => {
     const me = await api.me().catch(() => null);
     setUser(me);
@@ -100,7 +132,7 @@ export function App() {
       <aside className="border-b border-border bg-surface lg:border-b-0 lg:border-r">
         <div className="flex h-full flex-col gap-6 p-5">
           <div>
-            <p className="text-xs font-medium text-accent">Phase 1 · Fondations SaaS</p>
+            <p className="text-xs font-medium text-accent">Phase 2 · Connexions sociales</p>
             <h1 className="mt-1 text-lg font-semibold tracking-tight">AI Social Studio</h1>
           </div>
 
@@ -156,6 +188,14 @@ export function App() {
 
       <main className="px-4 py-8 lg:px-10" key={`${page}:${activeOrg ?? ''}`}>
         <div className="mx-auto max-w-5xl">
+          {notice && (
+            <p
+              role="status"
+              className="mb-4 rounded-lg border border-accent/40 bg-accent/10 px-3 py-2 text-sm text-accent"
+            >
+              {notice}
+            </p>
+          )}
           {page === 'dashboard' && <DashboardPage onNavigate={(p) => setPage(p as Page)} />}
           {page === 'organizations' && (
             <OrganizationsPage
@@ -167,6 +207,7 @@ export function App() {
           )}
           {page === 'brands' && <BrandsPage />}
           {page === 'media' && <MediaPage />}
+          {page === 'social' && <SocialAccountsPage />}
           {page === 'system' && <SystemPage />}
         </div>
       </main>

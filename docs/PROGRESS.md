@@ -68,4 +68,23 @@ Détail des choix et du périmètre reporté : [PHASE1.md](PHASE1.md).
 
 ### Prochaine étape
 
-Phase 2 — Connexions sociales : schéma des comptes sociaux, OAuth plateformes, invitations par e-mail et activation du stockage objet pour les fichiers binaires. Préalable : activer Cloudflare R2 dans le tableau de bord et faire tourner les clés exposées.
+Phase 2 — Connexions sociales (voir ci-dessous).
+
+---
+
+## Phase 2 — Connexions sociales (15 novembre 2026)
+
+**Statut : TERMINÉE.**
+
+- Modèles `SocialAccount` et `Invitation`, migration `20261115181000_phase2_connexions_sociales` appliquée sur Neon.
+- Jetons OAuth chiffrés en AES-256-GCM (clé dérivée de `AUTH_SECRET`), jamais renvoyés par l'API ; seuls `hasAccessToken` / `hasRefreshToken` sont exposés.
+- Routes `/social-accounts` (liste, connexion, mise à jour, synchronisation, déconnexion) et `/organizations/:id/invitations` + `/invitations/accept`.
+- Invitations à usage unique, expirantes, révocables, stockées par empreinte SHA-256 ; le lien `?invitation=<jeton>` est accepté automatiquement après connexion.
+- Interface : page « Comptes sociaux », section invitations dans Organisations, compteurs du tableau de bord.
+- Qualité : 18 tests unitaires (dont 8 sur la crypto), `pnpm test:phase2` (30 vérifications E2E), lint/typecheck/build/format verts.
+
+Détail : [PHASE2.md](PHASE2.md).
+
+### Prochaine étape
+
+Phase 3 — AI Video Studio. Préalables : identifiants d'application OAuth pour les plateformes, fournisseur d'IA, et activation du stockage objet (R2 ou Supabase Storage) pour les fichiers binaires.

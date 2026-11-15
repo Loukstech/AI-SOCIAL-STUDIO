@@ -30,6 +30,9 @@ const envSchema = z
     // Secret de signature des jetons d'authentification.
     AUTH_SECRET: z.string().min(16).optional(),
     AUTH_TOKEN_TTL_HOURS: z.coerce.number().int().min(1).max(720).default(168),
+    // Base des liens d'invitation envoyés aux futurs membres.
+    WEB_APP_URL: z.string().url().default('http://localhost:5173'),
+    INVITATION_TTL_HOURS: z.coerce.number().int().min(1).max(720).default(168),
   })
   .superRefine((env, ctx) => {
     // En développement, l'API démarre sans base ni Redis et le signale dans /health.

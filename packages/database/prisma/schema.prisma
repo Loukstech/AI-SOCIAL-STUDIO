@@ -1,6 +1,7 @@
-// Schéma Prisma d'AI Social Studio — Phase 1 (Fondations SaaS).
+// Schéma Prisma d'AI Social Studio — Phases 1 et 2.
 // Règles appliquées : identifiants UUID, soft-delete via `deletedAt`,
-// isolation multi-tenant par `organizationId`, journal d'audit append-only.
+// isolation multi-tenant par `organizationId`, journal d'audit append-only,
+// jetons OAuth chiffrés (AES-256-GCM) et invitations stockées par empreinte.
 
 generator client {
   provider     = "prisma-client"
@@ -26,6 +27,24 @@ enum MediaKind {
   DOCUMENT
 }
 
+enum SocialPlatform {
+  INSTAGRAM
+  FACEBOOK
+  TIKTOK
+  LINKEDIN
+  YOUTUBE
+  X
+  PINTEREST
+  THREADS
+}
+
+enum SocialAccountStatus {
+  CONNECTED
+  EXPIRED
+  REVOKED
+  ERROR
+}
+
 model User {
   id           String    @id @default(uuid())
   email        String    @unique
@@ -37,6 +56,7 @@ model User {
   memberships  Member[]
   sessions     Session[]
   auditLogs    AuditLog[]
+  invitations  Invitation[]
 
   @@index([deletedAt])
 }
@@ -60,10 +80,12 @@ model Organization {
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
   deletedAt DateTime?
-  members   Member[]
-  brands    Brand[]
-  media     MediaAsset[]
-  auditLogs AuditLog[]
+  members        Member[]
+  brands         Brand[]
+  media          MediaAsset[]
+  auditLogs      AuditLog[]
+  socialAccounts SocialAccount[]
+  invitations    Invitation[]
 
   @@index([deletedAt])
 }
@@ -91,8 +113,9 @@ model Brand {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   deletedAt      DateTime?
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   media          MediaAsset[]
+  socialAccounts SocialAccount[]
 
   @@unique([organizationId, name])
   @@index([organizationId])
@@ -130,4 +153,53 @@ model AuditLog {
 
   @@index([organizationId, createdAt])
   @@index([actorId])
+}
+
+/// Compte social rattaché à une organisation (et éventuellement à une marque).
+/// Les jetons OAuth sont stockés chiffrés en AES-256-GCM : jamais en clair.
+model SocialAccount {
+  id             String              @id @default(uuid())
+  organizationId String
+  brandId        String?
+  platform       SocialPlatform
+  username       String
+  displayName    String?
+  avatarUrl      String?
+  externalId     String?
+  accessToken    String?
+  refreshToken   String?
+  tokenExpiresAt DateTime?
+  scopes         String[]            @default([])
+  status         SocialAccountStatus @default(CONNECTED)
+  lastSyncedAt   DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  deletedAt      DateTime?
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  brand          Brand?              @relation(fields: [brandId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, platform, username])
+  @@index([organizationId])
+  @@index([brandId])
+  @@index([deletedAt])
+}
+
+/// Invitation à rejoindre une organisation. Seule l'empreinte SHA-256 du jeton
+/// est stockée : le lien complet n'existe qu'entre les mains de l'invité.
+model Invitation {
+  id             String           @id @default(uuid())
+  organizationId String
+  email          String
+  role           OrganizationRole @default(VIEWER)
+  tokenHash      String           @unique
+  invitedById    String?
+  expiresAt      DateTime
+  acceptedAt     DateTime?
+  revokedAt      DateTime?
+  createdAt      DateTime         @default(now())
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedBy      User?            @relation(fields: [invitedById], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, email])
+  @@index([expiresAt])
 }
