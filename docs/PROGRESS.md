@@ -255,7 +255,7 @@ Créer les applications OAuth (Meta, LinkedIn, X, TikTok, Google, Pinterest), re
 - Export CSV (une ligne par mesure, séparateur `;`, BOM UTF-8, en-têtes français) : une métrique absente laisse une cellule vide, jamais `0`.
 - Interface : page « Analytics » avec période/marque/classement, cartes de synthèse, carte « Limites de ces chiffres », comparaison par réseau avec couverture en infobulle, meilleurs contenus avec provenance et date de relevé, saisie et historique, collecte, export.
 - Modèle `PublicationMetric` (`MANUAL` / `PLATFORM_API` / `WEBHOOK`, `collectedAt` + `syncedAt`) ; migration `20261115260000_phase10_publication_metrics` appliquée sur Neon (11 migrations au total).
-- Qualité : 301 tests unitaires (35 sur analytics), `pnpm test:phase10` (62 vérifications E2E), lint/typecheck/build/format verts.
+- Qualité : 301 tests unitaires (35 sur analytics), `pnpm test:phase10` (97 vérifications E2E), lint/typecheck/build/format verts.
 
 Détail : [PHASE10.md](PHASE10.md).
 

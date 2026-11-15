@@ -65,6 +65,26 @@ function describe(result) {
   return `${result.status} ${Array.isArray(message) ? message.join(', ') : message}`.trim();
 }
 
+/**
+ * Réponse brute, en octets.
+ *
+ * `Response.text()` applique le décodage UTF-8 **avec suppression du BOM** :
+ * impossible de vérifier le BOM par ce chemin. On lit donc les octets, puis on
+ * décode en conservant le BOM (`ignoreBOM: true`) pour les assertions de texte.
+ */
+async function callBytes(path, { token, org } = {}) {
+  const headers = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  if (org) headers['X-Organization-Id'] = org;
+  const response = await fetch(`${API_URL}/api/v1${path}`, {
+    headers,
+    signal: AbortSignal.timeout(TIMEOUT),
+  });
+  const bytes = new Uint8Array(await response.arrayBuffer());
+  const text = new TextDecoder('utf-8', { ignoreBOM: true }).decode(bytes);
+  return { status: response.status, headers: response.headers, bytes, text };
+}
+
 async function register(email, name, organizationName) {
   const result = await call('/auth/register', {
     method: 'POST',
@@ -190,11 +210,11 @@ async function main() {
     JSON.stringify(empty.data?.sources),
   );
 
-  const emptyCsv = await call('/analytics/export.csv', { token, org: orgId });
+  const emptyCsv = await callBytes('/analytics/export.csv', { token, org: orgId });
   ok(
     'L’export CSV répond 200 sur une organisation vide',
     emptyCsv.status === 200,
-    describe(emptyCsv),
+    String(emptyCsv.status),
   );
   ok(
     'Le CSV annonce son type et son nom de fichier',
@@ -202,7 +222,16 @@ async function main() {
       String(emptyCsv.headers.get('content-disposition') ?? '').includes('analytics-'),
     String(emptyCsv.headers.get('content-disposition')),
   );
-  ok('Le CSV porte le BOM UTF-8 attendu par Excel', String(emptyCsv.data).startsWith('\uFEFF'));
+  ok(
+    'Le CSV porte le BOM UTF-8 attendu par Excel',
+    emptyCsv.bytes[0] === 0xef && emptyCsv.bytes[1] === 0xbb && emptyCsv.bytes[2] === 0xbf,
+    `octets ${[...emptyCsv.bytes.slice(0, 3)].join(' ')}`,
+  );
+  ok(
+    'Le CSV vide ne contient que son en-tête',
+    emptyCsv.text.trimEnd().split('\r\n').length === 1,
+    String(emptyCsv.text.trimEnd().split('\r\n').length),
+  );
 
   const emptyTop = await call('/analytics/top', { token, org: orgId });
   ok('Le classement répond 200 sans donnée', emptyTop.status === 200, describe(emptyTop));
@@ -462,9 +491,9 @@ async function main() {
   );
 
   // --- Export CSV ---
-  const csv = await call('/analytics/export.csv', { token, org: orgId });
-  const text = String(csv.data);
-  ok('L’export CSV répond 200', csv.status === 200, describe(csv));
+  const csv = await callBytes('/analytics/export.csv', { token, org: orgId });
+  const text = csv.text;
+  ok('L’export CSV répond 200', csv.status === 200, String(csv.status));
   ok(
     'L’en-tête nomme les métriques en français',
     text.includes(

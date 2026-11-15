@@ -37,14 +37,14 @@ GET /api/v1/analytics/overview
 
 ### Les routes
 
-| Route                              | Rôle     | Rôle requis |
-| ---------------------------------- | -------- | ----------- |
-| `GET /analytics/overview`          | agrégat  | `VIEWER`    |
-| `GET /analytics/top`               | classement | `VIEWER`  |
-| `GET /analytics/export.csv`        | export   | `VIEWER`    |
-| `GET /analytics/measurements`      | historique d'une cible | `VIEWER` |
-| `POST /analytics/measurements`     | saisie   | `EDITOR`    |
-| `POST /analytics/collect`          | collecte auprès des plateformes | `EDITOR` |
+| Route                          | Rôle                            | Rôle requis |
+| ------------------------------ | ------------------------------- | ----------- |
+| `GET /analytics/overview`      | agrégat                         | `VIEWER`    |
+| `GET /analytics/top`           | classement                      | `VIEWER`    |
+| `GET /analytics/export.csv`    | export                          | `VIEWER`    |
+| `GET /analytics/measurements`  | historique d'une cible          | `VIEWER`    |
+| `POST /analytics/measurements` | saisie                          | `EDITOR`    |
+| `POST /analytics/collect`      | collecte auprès des plateformes | `EDITOR`    |
 
 Un rapport n'est pas modifiable ; une mesure, si — c'est une donnée qu'on
 engage, d'où le seuil `EDITOR`.
@@ -207,7 +207,7 @@ Migration `20261115260000_phase10_publication_metrics` appliquée sur Neon
 
 ```bash
 pnpm --filter @ass/api test          # 301 tests unitaires, dont 35 sur analytics
-pnpm test:phase10                    # 62 vérifications E2E
+pnpm test:phase10                    # 97 vérifications E2E
 ```
 
 Le parcours E2E crée une vraie publication, la fait passer en `PUBLISHED` par le
