@@ -7,6 +7,7 @@
 ### Livraison finale
 
 **Environnement de développement opérationnel :**
+
 - Frontend : React 19, Vite 8, Tailwind 4, jetons de design clair/sombre, tests Vitest.
 - API : NestJS 12, modules ES, configuration validée, point de santé, documentation OpenAPI, tests Vitest.
 - Base de données : Prisma 7 + PostgreSQL 17 (Neon), migrations prêtes.
@@ -19,15 +20,18 @@
   - **Stockage objet** : Cloudflare R2 (clés prêtes, pas encore activé)
 
 **Qualité logicielle :**
+
 - CI/CD : GitHub Actions, passant à chaque push.
 - Lint, typecheck, tests et build : tout automatisé et validé.
 - Monorepo : pnpm workspaces + Turborepo, architecture modulaire.
 
 **Fichiers critiques :**
--  : URLs de production (DATABASE_URL, REDIS_URL, VITE_API_URL, CORS_ORIGINS).
--  : jetons de gestion (Neon, Upstash, Render, Cloudflare) — jamais committé.
+
+- `.env` : URLs de connexion (DATABASE_URL, REDIS_URL, VITE_API_URL, CORS_ORIGINS).
+- `.env.local` : jetons de gestion (Neon, Upstash, Render, Cloudflare) — jamais committé.
 
 **Vérifications manuelles :**
+
 - ✓ Démarrage local en mode dev (API + frontend).
 - ✓ Point de santé local : base et Redis « up ».
 - ✓ Point de santé en ligne (Render) : base et Redis « up ».

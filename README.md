@@ -16,7 +16,8 @@ cp .env.example .env     # puis renseigner DATABASE_URL et REDIS_URL (voir ci-de
 pnpm dev                 # API sur http://localhost:3000, web sur http://localhost:5173
 ```
 
-Le fichier  contient tous les jetons de gestion (Neon, Upstash, Render, Cloudflare) — jamais committé.
+Le fichier `.env.local` contient tous les jetons de gestion (Neon, Upstash, Render, Cloudflare) — jamais committé.
+
 ## Commandes
 
 | Commande                             | Rôle                                             |

@@ -13,6 +13,9 @@ coverage/
 # Client Prisma généré
 packages/database/src/generated/
 
+# Mémoire / métadonnées de l'agent (ne pas committer)
+.workbuddy-ai/
+
 # Divers
 *.log
 .DS_Store
