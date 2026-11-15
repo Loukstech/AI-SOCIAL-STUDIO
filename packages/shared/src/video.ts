@@ -10,7 +10,15 @@ export const transcriptStatuses = ['PENDING', 'PROCESSING', 'COMPLETED', 'FAILED
 export const transcriptStatusSchema = z.enum(transcriptStatuses);
 export type TranscriptStatus = (typeof transcriptStatuses)[number];
 
-export const subtitleStyles = ['PROFESSIONAL', 'MINIMAL', 'KARAOKE'] as const;
+export const subtitleStyles = [
+  'PROFESSIONAL',
+  'MINIMAL',
+  'KARAOKE',
+  'KEYWORDS',
+  'DYNAMIC',
+  'CREATOR',
+  'PODCAST',
+] as const;
 export const subtitleStyleSchema = z.enum(subtitleStyles);
 export type SubtitleStyle = (typeof subtitleStyles)[number];
 
@@ -18,7 +26,15 @@ export const subtitleStyleLabels: Record<SubtitleStyle, string> = {
   PROFESSIONAL: 'Professionnel',
   MINIMAL: 'Minimal',
   KARAOKE: 'Karaoké',
+  KEYWORDS: 'Mots-clés',
+  DYNAMIC: 'Dynamique',
+  CREATOR: 'Créateur',
+  PODCAST: 'Podcast',
 };
+
+export const subtitleFormats = ['srt', 'vtt', 'txt'] as const;
+export const subtitleFormatSchema = z.enum(subtitleFormats);
+export type SubtitleFormat = (typeof subtitleFormats)[number];
 
 export const createVideoProjectSchema = z.object({
   name: z.string().trim().min(2, 'Au moins 2 caractères').max(160),
@@ -73,6 +89,60 @@ export const subtitleTrackSchema = z.object({
 });
 export type SubtitleTrack = z.infer<typeof subtitleTrackSchema>;
 
+/** Suggestion de clip (Mode A) : passage autonome proposé par l'analyse. */
+export const clipSuggestionSchema = z.object({
+  id: z.string(),
+  projectId: z.string(),
+  title: z.string(),
+  summary: z.string(),
+  start: z.number(),
+  end: z.number(),
+  duration: z.number(),
+  score: z.number(),
+  rationale: z.string(),
+  selected: z.boolean(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type ClipSuggestion = z.infer<typeof clipSuggestionSchema>;
+
+export const clipTargetDurations = [15, 30, 45, 60, 90] as const;
+
+export const suggestClipsSchema = z.object({
+  targetDuration: z.number().int().min(5).max(600).optional(),
+});
+export type SuggestClipsInput = z.infer<typeof suggestClipsSchema>;
+
+export const updateClipSchema = z
+  .object({
+    title: z.string().trim().min(2).max(160).optional(),
+    start: z.number().nonnegative().optional(),
+    end: z.number().nonnegative().optional(),
+    selected: z.boolean().optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, { message: 'Aucune modification fournie' })
+  .refine(
+    (value) => value.start === undefined || value.end === undefined || value.end > value.start,
+    {
+      message: 'La fin doit être postérieure au début',
+    },
+  );
+export type UpdateClipInput = z.infer<typeof updateClipSchema>;
+
+/** Édition manuelle de la transcription : le texte et les bornes sont corrigeables. */
+export const updateTranscriptSchema = z.object({
+  segments: z.array(transcriptSegmentSchema).min(1).max(5000),
+});
+export type UpdateTranscriptInput = z.infer<typeof updateTranscriptSchema>;
+
+/** Réponse d'export : le contenu est renvoyé tel quel, le client en fait un fichier. */
+export const subtitleExportSchema = z.object({
+  format: subtitleFormatSchema,
+  filename: z.string(),
+  content: z.string(),
+});
+export type SubtitleExport = z.infer<typeof subtitleExportSchema>;
+
 export const videoProjectSchema = z.object({
   id: z.string(),
   organizationId: z.string(),
@@ -93,6 +163,7 @@ export type VideoProject = z.infer<typeof videoProjectSchema>;
 export const videoProjectDetailSchema = videoProjectSchema.extend({
   transcript: transcriptSchema.nullable(),
   subtitles: z.array(subtitleTrackSchema),
+  clips: z.array(clipSuggestionSchema),
 });
 export type VideoProjectDetail = z.infer<typeof videoProjectDetailSchema>;
 

@@ -1,12 +1,14 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type {
   Brand,
+  SubtitleFormat,
   SubtitleStyle,
+  TranscriptSegment,
   VideoProject,
   VideoProjectDetail,
   VideoProjectStatus,
 } from '@ass/shared';
-import { subtitleStyleLabels, subtitleStyles } from '@ass/shared';
+import { clipTargetDurations, subtitleStyleLabels, subtitleStyles } from '@ass/shared';
 import { api } from '../lib/api';
 import { Alert, Button, Card, Empty, Field, formatDate, PageHeader } from '../components/ui';
 
@@ -17,6 +19,35 @@ const PROJECT_STATUS: Record<VideoProjectStatus, { label: string; tone: string }
   FAILED: { label: 'Échec', tone: 'text-danger' },
 };
 
+const EXPORT_FORMATS: { id: SubtitleFormat; label: string }[] = [
+  { id: 'srt', label: 'SRT' },
+  { id: 'vtt', label: 'VTT' },
+  { id: 'txt', label: 'TXT' },
+];
+
+function formatSeconds(value: number): string {
+  const total = Math.max(0, value);
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  return `${minutes}:${seconds.toFixed(1).padStart(4, '0')}`;
+}
+
+function scoreTone(score: number): string {
+  if (score >= 75) return 'border-success/40 text-success';
+  if (score >= 55) return 'border-accent/40 text-accent';
+  return 'border-border text-text-muted';
+}
+
+function downloadText(filename: string, content: string): void {
+  const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 export function VideoStudioPage() {
   const [projects, setProjects] = useState<VideoProject[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
@@ -26,9 +57,11 @@ export function VideoStudioPage() {
   const [sourceUrl, setSourceUrl] = useState('');
   const [brandId, setBrandId] = useState('');
   const [style, setStyle] = useState<SubtitleStyle>('PROFESSIONAL');
+  const [targetDuration, setTargetDuration] = useState<number>(30);
+  const [draft, setDraft] = useState<TranscriptSegment[] | null>(null);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
-  const [copiedId, setCopiedId] = useState('');
   const [reload, setReload] = useState(0);
 
   const refresh = () => setReload((n) => n + 1);
@@ -49,105 +82,175 @@ export function VideoStudioPage() {
     };
   }, [reload]);
 
-  async function open(id: string) {
+  async function run<T>(action: () => Promise<T>, failure: string): Promise<T | null> {
     setError('');
+    setNotice('');
+    setBusy(true);
     try {
-      setDetail(await api.videoProjects.detail(id));
+      return await action();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Projet introuvable');
+      setError(cause instanceof Error ? cause.message : failure);
+      return null;
+    } finally {
+      setBusy(false);
     }
+  }
+
+  async function open(id: string) {
+    const loaded = await run(() => api.videoProjects.detail(id), 'Projet introuvable');
+    if (loaded) {
+      setDetail(loaded);
+      setDraft(null);
+    }
+  }
+
+  async function reloadDetail(id: string) {
+    const loaded = await api.videoProjects.detail(id).catch(() => null);
+    if (loaded) setDetail(loaded);
   }
 
   async function create(event: FormEvent) {
     event.preventDefault();
-    setError('');
-    setBusy(true);
-    try {
-      const created = await api.videoProjects.create({
-        name,
-        ...(description ? { description } : {}),
-        ...(sourceUrl ? { sourceUrl } : {}),
-        ...(brandId ? { brandId } : {}),
-      });
-      setName('');
-      setDescription('');
-      setSourceUrl('');
-      setBrandId('');
-      refresh();
-      await open(created.id);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Création impossible');
-    } finally {
-      setBusy(false);
-    }
+    const created = await run(
+      () =>
+        api.videoProjects.create({
+          name,
+          ...(description ? { description } : {}),
+          ...(sourceUrl ? { sourceUrl } : {}),
+          ...(brandId ? { brandId } : {}),
+        }),
+      'Création impossible',
+    );
+    if (!created) return;
+    setName('');
+    setDescription('');
+    setSourceUrl('');
+    setBrandId('');
+    refresh();
+    await open(created.id);
   }
 
   async function transcribe() {
     if (!detail) return;
-    setError('');
-    setBusy(true);
-    try {
-      setDetail(await api.videoProjects.transcribe(detail.id));
-      refresh();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Transcription impossible');
-    } finally {
-      setBusy(false);
-    }
+    const updated = await run(
+      () => api.videoProjects.transcribe(detail.id),
+      'Transcription impossible',
+    );
+    if (!updated) return;
+    setDetail(updated);
+    setDraft(null);
+    refresh();
   }
 
   async function generateSubtitles() {
     if (!detail) return;
-    setError('');
-    setBusy(true);
-    try {
-      await api.videoProjects.subtitles(detail.id, style);
-      setDetail(await api.videoProjects.detail(detail.id));
-      refresh();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Génération impossible');
-    } finally {
-      setBusy(false);
-    }
+    const track = await run(
+      () => api.videoProjects.subtitles(detail.id, style),
+      'Génération impossible',
+    );
+    if (!track) return;
+    await reloadDetail(detail.id);
+    refresh();
+    setNotice(`Piste « ${subtitleStyleLabels[track.style]} » prête : ${track.cueCount} cue(s).`);
   }
 
-  async function remove(id: string) {
-    setError('');
-    try {
-      await api.videoProjects.remove(id);
-      if (detail?.id === id) setDetail(null);
-      refresh();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Suppression impossible');
-    }
+  async function saveTranscript() {
+    if (!detail || !draft) return;
+    const updated = await run(
+      () => api.videoProjects.updateTranscript(detail.id, { segments: draft }),
+      'Enregistrement impossible',
+    );
+    if (!updated) return;
+    setDetail(updated);
+    setDraft(null);
+    refresh();
+    setNotice('Transcription enregistrée. Régénérez les sous-titres pour la refléter.');
   }
 
-  async function copyTrack(id: string, content: string) {
+  async function extractClips() {
+    if (!detail) return;
+    const clips = await run(
+      () => api.videoProjects.suggestClips(detail.id, targetDuration),
+      'Extraction impossible',
+    );
+    if (!clips) return;
+    setDetail({ ...detail, clips });
+    setNotice(`${clips.length} clip(s) proposé(s) pour une cible de ${targetDuration} s.`);
+  }
+
+  async function toggleClip(clipId: string, selected: boolean) {
+    if (!detail) return;
+    const updated = await run(
+      () => api.videoProjects.updateClip(detail.id, clipId, { selected }),
+      'Mise à jour impossible',
+    );
+    if (!updated) return;
+    setDetail({
+      ...detail,
+      clips: detail.clips.map((clip) => (clip.id === clipId ? updated : clip)),
+    });
+  }
+
+  async function removeClip(clipId: string) {
+    if (!detail) return;
+    const done = await run(
+      () => api.videoProjects.removeClip(detail.id, clipId),
+      'Suppression impossible',
+    );
+    if (done === null) return;
+    setDetail({ ...detail, clips: detail.clips.filter((clip) => clip.id !== clipId) });
+  }
+
+  async function exportTrack(trackId: string, format: SubtitleFormat) {
+    if (!detail) return;
+    const exported = await run(
+      () => api.videoProjects.exportSubtitle(detail.id, trackId, format),
+      'Export impossible',
+    );
+    if (exported) downloadText(exported.filename, exported.content);
+  }
+
+  async function copyTrack(content: string) {
     try {
       await navigator.clipboard.writeText(content);
-      setCopiedId(id);
+      setNotice('SRT copié dans le presse-papiers.');
     } catch {
       setError('Copie impossible : sélectionnez le texte manuellement.');
     }
   }
 
-  function downloadTrack(name: string, style: SubtitleStyle, content: string) {
-    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${name.replace(/[^\w-]+/g, '-').toLowerCase()}.${style.toLowerCase()}.srt`;
-    link.click();
-    URL.revokeObjectURL(url);
+  async function remove(id: string) {
+    const done = await run(() => api.videoProjects.remove(id), 'Suppression impossible');
+    if (done === null) return;
+    if (detail?.id === id) setDetail(null);
+    setDraft(null);
+    refresh();
   }
+
+  function updateSegment(index: number, patch: Partial<TranscriptSegment>) {
+    if (!draft) return;
+    setDraft(
+      draft.map((segment, position) => (position === index ? { ...segment, ...patch } : segment)),
+    );
+  }
+
+  const segments = draft ?? detail?.transcript?.segments ?? [];
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="AI Video Studio"
-        description="Préparez un projet vidéo, générez sa transcription et ses sous-titres. Le rendu ffmpeg arrivera avec le worker dédié."
+        description="Transcription éditable, sept styles de sous-titres, exports SRT / VTT / TXT et extraction des meilleurs passages. Le rendu ffmpeg arrivera avec le worker dédié."
       />
       {error && <Alert>{error}</Alert>}
+      {notice && (
+        <p
+          role="status"
+          className="rounded-lg border border-accent/40 bg-accent/10 px-3 py-2 text-sm text-accent"
+        >
+          {notice}
+        </p>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-[340px_1fr]">
         <div className="space-y-4">
@@ -229,9 +332,11 @@ export function VideoStudioPage() {
 
         <Card>
           {!detail ? (
-            <Empty>Sélectionnez un projet pour voir sa transcription et ses sous-titres.</Empty>
+            <Empty>
+              Sélectionnez un projet pour voir sa transcription, ses clips et ses sous-titres.
+            </Empty>
           ) : (
-            <div className="space-y-5">
+            <div className="space-y-6">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <h2 className="text-lg font-semibold">{detail.name}</h2>
@@ -282,19 +387,95 @@ export function VideoStudioPage() {
                 </Button>
               </div>
 
-              <section className="space-y-2">
-                <h3 className="text-sm font-medium">Transcription</h3>
+              <section className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-sm font-medium">Transcription</h3>
+                  {detail.transcript && (
+                    <div className="flex gap-2">
+                      {draft ? (
+                        <>
+                          <Button variant="ghost" onClick={() => setDraft(null)} disabled={busy}>
+                            Annuler
+                          </Button>
+                          <Button onClick={() => void saveTranscript()} disabled={busy}>
+                            {busy ? 'Enregistrement…' : 'Enregistrer'}
+                          </Button>
+                        </>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          onClick={() =>
+                            setDraft(
+                              (detail.transcript?.segments ?? []).map((segment) => ({
+                                ...segment,
+                              })),
+                            )
+                          }
+                        >
+                          Modifier
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
                 {!detail.transcript ? (
                   <Empty>Aucune transcription. Lancez « Transcrire » pour en générer une.</Empty>
+                ) : draft ? (
+                  <div className="space-y-2">
+                    {draft.map((segment, index) => (
+                      <div
+                        key={`edit-${index}`}
+                        className="grid gap-2 rounded-lg border border-border bg-bg p-2 sm:grid-cols-[80px_80px_1fr]"
+                      >
+                        <label className="block">
+                          <span className="block text-xs text-text-muted">Début (s)</span>
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            value={segment.start}
+                            onChange={(e) =>
+                              updateSegment(index, { start: Number(e.target.value) })
+                            }
+                            className="w-full rounded-md border border-border bg-surface px-2 py-1 text-sm outline-none focus:border-accent"
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="block text-xs text-text-muted">Fin (s)</span>
+                          <input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            value={segment.end}
+                            onChange={(e) => updateSegment(index, { end: Number(e.target.value) })}
+                            className="w-full rounded-md border border-border bg-surface px-2 py-1 text-sm outline-none focus:border-accent"
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="block text-xs text-text-muted">Texte</span>
+                          <input
+                            value={segment.text}
+                            onChange={(e) => updateSegment(index, { text: e.target.value })}
+                            className="w-full rounded-md border border-border bg-surface px-2 py-1 text-sm outline-none focus:border-accent"
+                          />
+                        </label>
+                      </div>
+                    ))}
+                    <p className="text-xs text-text-muted">
+                      Enregistrer supprime les pistes existantes : elles sont recalculées à partir
+                      du nouveau texte.
+                    </p>
+                  </div>
                 ) : (
                   <>
                     <p className="text-xs text-text-muted">
-                      Fournisseur : {detail.transcript.provider ?? 'inconnu'} ·{' '}
-                      {detail.transcript.segments.length} segment(s) · {detail.transcript.status}
+                      Fournisseur : {detail.transcript.provider ?? 'inconnu'} · {segments.length}{' '}
+                      segment(s) · {detail.transcript.status}
                     </p>
                     <ol className="space-y-1 rounded-lg border border-border bg-bg p-3 text-sm">
-                      {detail.transcript.segments.map((segment, index) => (
-                        <li key={`${segment.start}-${index}`} className="flex gap-3">
+                      {segments.map((segment, index) => (
+                        <li key={`read-${index}`} className="flex gap-3">
                           <span className="shrink-0 font-mono text-xs text-text-muted">
                             {segment.start.toFixed(1)}s
                           </span>
@@ -306,7 +487,89 @@ export function VideoStudioPage() {
                 )}
               </section>
 
-              <section className="space-y-2">
+              <section className="space-y-3 border-t border-border pt-4">
+                <div className="flex flex-wrap items-end justify-between gap-3">
+                  <div>
+                    <h3 className="text-sm font-medium">Meilleurs passages</h3>
+                    <p className="text-xs text-text-muted">
+                      Mode A — l'analyse classe les passages autonomes de la transcription.
+                    </p>
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <label className="block space-y-1.5">
+                      <span className="block text-xs text-text-muted">Durée cible</span>
+                      <select
+                        value={targetDuration}
+                        onChange={(e) => setTargetDuration(Number(e.target.value))}
+                        className="rounded-lg border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-accent"
+                      >
+                        {clipTargetDurations.map((value) => (
+                          <option key={value} value={value}>
+                            {value} s
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <Button
+                      variant="ghost"
+                      onClick={() => void extractClips()}
+                      disabled={busy || !detail.transcript}
+                    >
+                      Proposer des clips
+                    </Button>
+                  </div>
+                </div>
+
+                {detail.clips.length === 0 ? (
+                  <Empty>Aucun clip proposé pour l'instant.</Empty>
+                ) : (
+                  <ul className="space-y-2">
+                    {detail.clips.map((clip) => (
+                      <li
+                        key={clip.id}
+                        className={`rounded-lg border p-3 ${
+                          clip.selected ? 'border-accent/60 bg-accent/5' : 'border-border'
+                        }`}
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium">{clip.title}</p>
+                            <p className="font-mono text-xs text-text-muted">
+                              {formatSeconds(clip.start)} → {formatSeconds(clip.end)} ·{' '}
+                              {clip.duration.toFixed(1)} s
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`rounded-md border px-2 py-0.5 text-xs font-medium tabular-nums ${scoreTone(clip.score)}`}
+                            >
+                              {clip.score}/100
+                            </span>
+                            <Button
+                              variant="ghost"
+                              onClick={() => void toggleClip(clip.id, !clip.selected)}
+                              disabled={busy}
+                            >
+                              {clip.selected ? 'Retenu ✓' : 'Retenir'}
+                            </Button>
+                            <Button
+                              variant="danger"
+                              onClick={() => void removeClip(clip.id)}
+                              disabled={busy}
+                            >
+                              Retirer
+                            </Button>
+                          </div>
+                        </div>
+                        <p className="mt-2 text-sm text-text-muted">{clip.summary}</p>
+                        <p className="mt-1 text-xs italic text-text-muted">{clip.rationale}</p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+
+              <section className="space-y-2 border-t border-border pt-4">
                 <h3 className="text-sm font-medium">Pistes de sous-titres</h3>
                 {detail.subtitles.length === 0 ? (
                   <Empty>Aucune piste générée.</Empty>
@@ -319,19 +582,20 @@ export function VideoStudioPage() {
                             {subtitleStyleLabels[track.style]} · {track.language} · {track.cueCount}{' '}
                             cue(s)
                           </p>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="ghost"
-                              onClick={() => void copyTrack(track.id, track.content)}
-                            >
-                              {copiedId === track.id ? 'Copié' : 'Copier le SRT'}
+                          <div className="flex flex-wrap gap-2">
+                            <Button variant="ghost" onClick={() => void copyTrack(track.content)}>
+                              Copier le SRT
                             </Button>
-                            <Button
-                              variant="ghost"
-                              onClick={() => downloadTrack(detail.name, track.style, track.content)}
-                            >
-                              Télécharger
-                            </Button>
+                            {EXPORT_FORMATS.map((format) => (
+                              <Button
+                                key={format.id}
+                                variant="ghost"
+                                onClick={() => void exportTrack(track.id, format.id)}
+                                disabled={busy}
+                              >
+                                {format.label}
+                              </Button>
+                            ))}
                           </div>
                         </div>
                         <details className="mt-2">
@@ -349,9 +613,8 @@ export function VideoStudioPage() {
               </section>
 
               <p className="border-t border-border pt-3 text-xs text-text-muted">
-                Mode démonstration : la transcription est générée localement (AI_PROVIDER=mock).
-                Brancher OpenAI ou un autre fournisseur se fait côté API, sans changer cette
-                interface.
+                Mode démonstration : la transcription est générée localement (AI_PROVIDER=mock). Le
+                rendu vidéo et l'incrustation ffmpeg nécessitent le worker dédié.
               </p>
             </div>
           )}

@@ -2,6 +2,7 @@ import {
   acceptedInvitationSchema,
   authResponseSchema,
   brandSchema,
+  clipSuggestionSchema,
   createdInvitationSchema,
   dashboardStatsSchema,
   healthResponseSchema,
@@ -10,6 +11,7 @@ import {
   memberSchema,
   organizationSchema,
   socialAccountSchema,
+  subtitleExportSchema,
   subtitleTrackSchema,
   userSchema,
   videoProjectDetailSchema,
@@ -18,6 +20,7 @@ import {
   type AcceptedInvitation,
   type AuthResponse,
   type Brand,
+  type ClipSuggestion,
   type CreateBrandInput,
   type CreateInvitationInput,
   type CreateMediaInput,
@@ -34,9 +37,13 @@ import {
   type RegisterInput,
   type CreateVideoProjectInput,
   type SocialAccount,
+  type SubtitleExport,
+  type SubtitleFormat,
   type SubtitleStyle,
   type SubtitleTrack,
+  type UpdateClipInput,
   type UpdateSocialAccountInput,
+  type UpdateTranscriptInput,
   type UpdateVideoProjectInput,
   type User,
   type VideoProject,
@@ -199,6 +206,33 @@ export const api = {
       post(`/video-projects/${id}/transcribe`, videoProjectDetailSchema, {}),
     subtitles: (id: string, style: SubtitleStyle): Promise<SubtitleTrack> =>
       post(`/video-projects/${id}/subtitles`, subtitleTrackSchema, { style }),
+    exportSubtitle: (
+      id: string,
+      trackId: string,
+      format: SubtitleFormat,
+    ): Promise<SubtitleExport> =>
+      request(
+        `/video-projects/${id}/subtitles/${trackId}/export?format=${format}`,
+        subtitleExportSchema,
+      ),
+    updateTranscript: (id: string, body: UpdateTranscriptInput): Promise<VideoProjectDetail> =>
+      request(`/video-projects/${id}/transcript`, videoProjectDetailSchema, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+    suggestClips: (id: string, targetDuration?: number): Promise<ClipSuggestion[]> =>
+      post(
+        `/video-projects/${id}/clips`,
+        z.array(clipSuggestionSchema),
+        targetDuration === undefined ? {} : { targetDuration },
+      ),
+    updateClip: (id: string, clipId: string, body: UpdateClipInput): Promise<ClipSuggestion> =>
+      request(`/video-projects/${id}/clips/${clipId}`, clipSuggestionSchema, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+    removeClip: (id: string, clipId: string): Promise<unknown> =>
+      request(`/video-projects/${id}/clips/${clipId}`, z.unknown(), { method: 'DELETE' }),
   },
 
   dashboard: (): Promise<DashboardStats> => request('/dashboard', dashboardStatsSchema),

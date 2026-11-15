@@ -107,3 +107,22 @@ Détail : [PHASE3.md](PHASE3.md).
 ### Prochaine étape
 
 Phase 4 — Production et rendu. Préalables : worker de rendu (ffmpeg), stockage objet activé, adaptateur de transcription réel, identifiants OAuth des plateformes.
+
+---
+
+## Phase 4 — Édition, clips et exports (15 novembre 2026)
+
+**Statut : TERMINÉE.**
+
+- Édition manuelle de la transcription (texte et timings) avec validation stricte ; les pistes de sous-titres obsolètes sont supprimées, car dérivées du texte.
+- Sept styles de sous-titres conformes au §5.4 : professionnel, minimal, karaoké, mots-clés, dynamique, créateur, podcast.
+- Exports SRT, VTT et TXT par simple sérialisation des cues stockées en JSON sur la piste.
+- Mode A : extraction des meilleurs passages avec score 0–100 et justification explicable (`ClipSuggestion`), ajustement des points de coupe et sélection.
+- Migration `20261115200000_phase4_edition_clips` appliquée sur Neon.
+- Qualité : 40 tests unitaires (dont 24 sur le pipeline vidéo), `pnpm test:phase4` (63 vérifications E2E), lint/typecheck/build/format verts.
+
+Détail : [PHASE4.md](PHASE4.md).
+
+### Prochaine étape
+
+Phase 5 — Production et rendu. Préalables : worker de rendu (ffmpeg), stockage objet activé, adaptateur de transcription réel, identifiants OAuth des plateformes.

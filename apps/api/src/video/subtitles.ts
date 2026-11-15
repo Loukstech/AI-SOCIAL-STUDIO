@@ -1,15 +1,110 @@
-import type { SubtitleStyle, TranscriptSegment } from '@ass/shared';
+import type { SubtitleFormat, SubtitleStyle, TranscriptSegment } from '@ass/shared';
 
 /**
- * Génération de sous-titres au format SRT.
+ * Génération et sérialisation des sous-titres.
  *
  * Module volontairement pur (aucune dépendance base ou réseau) : il est testé
  * unitairement et sera réutilisé tel quel par un worker de rendu ffmpeg.
+ *
+ * Sept styles sont couverts, conformément au cahier des charges (§5.4) :
+ * professionnel, minimal, karaoké, mots-clés, dynamique, créateur, podcast.
  */
 
-const MINIMAL_MAX_CHARS = 42;
-const KARAOKE_WORDS_PER_CUE = 2;
 const MIN_CUE_SECONDS = 0.8;
+
+/** Mots outils français : jamais mis en avant par le style « mots-clés ». */
+const STOP_WORDS = new Set([
+  'alors',
+  'apres',
+  'aussi',
+  'autre',
+  'avec',
+  'avoir',
+  'bien',
+  'cela',
+  'cette',
+  'comme',
+  'dans',
+  'depuis',
+  'donc',
+  'elle',
+  'encore',
+  'entre',
+  'etre',
+  'faire',
+  'pour',
+  'plus',
+  'quand',
+  'sans',
+  'sous',
+  'tout',
+  'tous',
+  'tres',
+  'votre',
+  'vous',
+  'nous',
+  'mais',
+  'leur',
+  'leurs',
+  'dont',
+  'vers',
+  'chez',
+  'ici',
+  'puis',
+  'sur',
+  'par',
+  'les',
+  'des',
+  'une',
+  'aux',
+  'est',
+  'que',
+  'qui',
+  'son',
+  'ses',
+  'mon',
+  'mes',
+  'nos',
+  'vos',
+  'ils',
+  'elles',
+  'ont',
+  'sont',
+  'ete',
+  // Mots interrogatifs : jamais porteurs de sens dans une accroche mise en avant.
+  'comment',
+  'pourquoi',
+  'quoi',
+  'quel',
+  'quelle',
+  'quels',
+  'quelles',
+  'combien',
+  'lequel',
+  'laquelle',
+]);
+
+interface StyleConfig {
+  /** Longueur maximale d'un cue. `Infinity` = pas de contrainte. */
+  maxChars: number;
+  /** Nombre maximal de mots par cue. `Infinity` = pas de contrainte. */
+  maxWords: number;
+  /** Découpe d'abord sur les fins de phrase, puis sur la longueur. */
+  sentenceAware?: boolean;
+  /** Met en majuscules les mots porteurs de sens. */
+  uppercaseKeywords?: boolean;
+}
+
+export const STYLE_CONFIG: Record<SubtitleStyle, StyleConfig> = {
+  // Une phrase par cue, redécoupée seulement si elle dépasse 84 caractères.
+  PROFESSIONAL: { maxChars: 84, maxWords: Number.POSITIVE_INFINITY, sentenceAware: true },
+  MINIMAL: { maxChars: 42, maxWords: Number.POSITIVE_INFINITY },
+  KARAOKE: { maxChars: Number.POSITIVE_INFINITY, maxWords: 2 },
+  KEYWORDS: { maxChars: 42, maxWords: Number.POSITIVE_INFINITY, uppercaseKeywords: true },
+  DYNAMIC: { maxChars: 28, maxWords: 3 },
+  CREATOR: { maxChars: 32, maxWords: Number.POSITIVE_INFINITY },
+  PODCAST: { maxChars: 90, maxWords: Number.POSITIVE_INFINITY },
+};
 
 function round(value: number): number {
   return Math.round(value * 1000) / 1000;
@@ -31,24 +126,63 @@ export function buildDemoSegments(input: {
   ];
 }
 
-function groupWords(text: string, style: SubtitleStyle): string[] {
+/** Retire la ponctuation de bord sans casser les traits d'union ni les apostrophes. */
+function trimEdges(word: string): string {
+  return word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
+}
+
+function normaliseWord(word: string): string {
+  return trimEdges(word)
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
+
+/** Mots porteurs de sens, du plus long au plus court : sert aux titres de clips. */
+export function salientWords(text: string, limit = 4): string[] {
+  const seen = new Set<string>();
+  const words: string[] = [];
+  for (const word of text.split(/\s+/).filter(Boolean)) {
+    const bare = trimEdges(word);
+    const normalised = normaliseWord(word);
+    if (bare.length < 5 || STOP_WORDS.has(normalised) || seen.has(normalised)) continue;
+    seen.add(normalised);
+    words.push(bare);
+  }
+  return words.sort((a, b) => b.length - a.length).slice(0, limit);
+}
+
+function emphasise(text: string): string {
+  return text
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((word) => {
+      const bare = trimEdges(word);
+      const normalised = normaliseWord(word);
+      if (bare.length < 6 || STOP_WORDS.has(normalised)) return word;
+      return word.toUpperCase();
+    })
+    .join(' ');
+}
+
+/** Chunk les mots d'une phrase selon les limites de caractères et de mots du style. */
+function chunkWords(text: string, config: StyleConfig): string[] {
   const words = text.split(/\s+/).filter(Boolean);
   if (words.length === 0) return [];
-  if (style === 'PROFESSIONAL') return [words.join(' ')];
+
+  if (Number.isFinite(config.maxWords)) {
+    const groups: string[] = [];
+    for (let index = 0; index < words.length; index += config.maxWords) {
+      groups.push(words.slice(index, index + config.maxWords).join(' '));
+    }
+    return groups;
+  }
 
   const groups: string[] = [];
   let current: string[] = [];
   for (const word of words) {
-    if (style === 'KARAOKE') {
-      current.push(word);
-      if (current.length === KARAOKE_WORDS_PER_CUE) {
-        groups.push(current.join(' '));
-        current = [];
-      }
-      continue;
-    }
     const candidate = [...current, word].join(' ');
-    if (candidate.length > MINIMAL_MAX_CHARS && current.length > 0) {
+    if (candidate.length > config.maxChars && current.length > 0) {
       groups.push(current.join(' '));
       current = [word];
     } else {
@@ -57,6 +191,21 @@ function groupWords(text: string, style: SubtitleStyle): string[] {
   }
   if (current.length > 0) groups.push(current.join(' '));
   return groups;
+}
+
+/** Découpe sur les fins de phrase sans perdre la ponctuation. */
+function splitSentences(text: string): string[] {
+  return text
+    .split(/(?<=[.!?…])\s+/u)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean);
+}
+
+function groupWords(text: string, style: SubtitleStyle): string[] {
+  const config = STYLE_CONFIG[style];
+  const units = config.sentenceAware ? splitSentences(text) : [text];
+  const groups = units.flatMap((unit) => chunkWords(unit, config));
+  return config.uppercaseKeywords ? groups.map(emphasise) : groups;
 }
 
 /** Découpe les segments selon le style et répartit la durée au prorata des caractères. */
@@ -89,24 +238,54 @@ export function splitIntoCues(
   return cues;
 }
 
-export function formatSrtTime(seconds: number): string {
+function splitTime(seconds: number): [number, number, number, number] {
   const total = Math.max(0, Math.round(seconds * 1000));
-  const hours = Math.floor(total / 3_600_000);
-  const minutes = Math.floor((total % 3_600_000) / 60_000);
-  const secs = Math.floor((total % 60_000) / 1000);
-  const millis = total % 1000;
+  return [
+    Math.floor(total / 3_600_000),
+    Math.floor((total % 3_600_000) / 60_000),
+    Math.floor((total % 60_000) / 1000),
+    total % 1000,
+  ];
+}
+
+/** Horodatage SRT : `HH:MM:SS,mmm`. */
+export function formatSrtTime(seconds: number): string {
+  const [hours, minutes, secs, millis] = splitTime(seconds);
   const pad = (value: number, size = 2) => String(value).padStart(size, '0');
   return `${pad(hours)}:${pad(minutes)}:${pad(secs)},${pad(millis, 3)}`;
 }
 
-export function toSrt(segments: TranscriptSegment[], style: SubtitleStyle): string {
-  const cues = splitIntoCues(segments, style);
+/** Horodatage WebVTT : `HH:MM:SS.mmm` (virgule remplacée par un point). */
+export function formatVttTime(seconds: number): string {
+  return formatSrtTime(seconds).replace(',', '.');
+}
+
+export function toSrt(cues: TranscriptSegment[]): string {
   return `${cues
     .map(
       (cue, index) =>
         `${index + 1}\n${formatSrtTime(cue.start)} --> ${formatSrtTime(cue.end)}\n${cue.text}`,
     )
     .join('\n\n')}\n`;
+}
+
+export function toVtt(cues: TranscriptSegment[]): string {
+  const blocks = cues.map(
+    (cue, index) =>
+      `${index + 1}\n${formatVttTime(cue.start)} --> ${formatVttTime(cue.end)}\n${cue.text}`,
+  );
+  return `WEBVTT\n\n${blocks.join('\n\n')}\n`;
+}
+
+export function toTxt(cues: TranscriptSegment[]): string {
+  return `${cues.map((cue) => cue.text).join('\n')}\n`;
+}
+
+/** Sérialise des cues déjà calculées dans le format demandé. */
+export function serializeCues(cues: TranscriptSegment[], format: SubtitleFormat): string {
+  if (format === 'vtt') return toVtt(cues);
+  if (format === 'txt') return toTxt(cues);
+  return toSrt(cues);
 }
 
 export function countCues(segments: TranscriptSegment[], style: SubtitleStyle): number {

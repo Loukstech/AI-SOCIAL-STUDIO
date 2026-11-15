@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -9,18 +10,28 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
 import {
   createSubtitleSchema,
   createVideoProjectSchema,
+  subtitleFormatSchema,
+  suggestClipsSchema,
   transcriptStatusSchema,
+  updateClipSchema,
+  updateTranscriptSchema,
   updateVideoProjectSchema,
   videoProjectStatusSchema,
+  type ClipSuggestion,
   type CreateSubtitleInput,
   type CreateVideoProjectInput,
+  type SubtitleExport,
   type SubtitleTrack,
+  type SuggestClipsInput,
+  type UpdateClipInput,
+  type UpdateTranscriptInput,
   type UpdateVideoProjectInput,
   type VideoProject,
   type VideoProjectDetail,
@@ -28,7 +39,8 @@ import {
 import { Db, ZodPipe } from '../common/validation.js';
 import { AuthGuard, MinRole } from '../auth/auth.guard.js';
 import type { AuthedRequest } from '../auth/auth.types.js';
-import { VideoPipelineService, toTrack, toTranscript } from './video-pipeline.service.js';
+import { DEFAULT_TARGET_DURATION } from './clips.js';
+import { VideoPipelineService, toClip, toTrack, toTranscript } from './video-pipeline.service.js';
 
 @Controller('video-projects')
 @UseGuards(AuthGuard)
@@ -161,6 +173,117 @@ export class VideoProjectsController {
     return track;
   }
 
+  @Patch(':id/transcript')
+  @MinRole('EDITOR')
+  async editTranscript(
+    @Req() request: AuthedRequest,
+    @Param('id') id: string,
+    @Body(new ZodPipe(updateTranscriptSchema)) body: UpdateTranscriptInput,
+  ): Promise<VideoProjectDetail> {
+    const organizationId = this.org(request);
+    const project = await this.find(organizationId, id);
+    await this.pipeline.updateTranscript(project, body.segments);
+    await this.audit(request, organizationId, 'video_project.transcript_edited', project.id, {
+      segments: body.segments.length,
+    });
+    return this.detailOf(organizationId, id);
+  }
+
+  @Get(':id/subtitles/:trackId/export')
+  @MinRole('VIEWER')
+  async exportSubtitle(
+    @Req() request: AuthedRequest,
+    @Param('id') id: string,
+    @Param('trackId') trackId: string,
+    @Query('format') rawFormat: string | undefined,
+  ): Promise<SubtitleExport> {
+    const parsed = subtitleFormatSchema.safeParse(rawFormat ?? 'srt');
+    if (!parsed.success) {
+      throw new BadRequestException('Format attendu : srt, vtt ou txt');
+    }
+    const project = await this.find(this.org(request), id);
+    const { filename, content } = await this.pipeline.exportTrack(project, trackId, parsed.data);
+    return { format: parsed.data, filename, content };
+  }
+
+  @Post(':id/clips')
+  @HttpCode(201)
+  @MinRole('EDITOR')
+  async extractClips(
+    @Req() request: AuthedRequest,
+    @Param('id') id: string,
+    @Body(new ZodPipe(suggestClipsSchema)) body: SuggestClipsInput,
+  ): Promise<ClipSuggestion[]> {
+    const organizationId = this.org(request);
+    const project = await this.find(organizationId, id);
+    const clips = await this.pipeline.extractClips(
+      project,
+      body.targetDuration ?? DEFAULT_TARGET_DURATION,
+    );
+    await this.audit(request, organizationId, 'video_project.clips_extracted', project.id, {
+      clips: clips.length,
+      targetDuration: body.targetDuration ?? DEFAULT_TARGET_DURATION,
+    });
+    return clips;
+  }
+
+  @Patch(':id/clips/:clipId')
+  @MinRole('EDITOR')
+  async updateClip(
+    @Req() request: AuthedRequest,
+    @Param('id') id: string,
+    @Param('clipId') clipId: string,
+    @Body(new ZodPipe(updateClipSchema)) body: UpdateClipInput,
+  ): Promise<ClipSuggestion> {
+    const organizationId = this.org(request);
+    const project = await this.find(organizationId, id);
+    const clip = await this.db.client.clipSuggestion.findFirst({
+      where: { id: clipId, projectId: project.id },
+    });
+    if (!clip) throw new NotFoundException('Clip introuvable');
+
+    const start = body.start ?? clip.start;
+    const end = body.end ?? clip.end;
+    if (end <= start) {
+      throw new BadRequestException('La fin du clip doit être postérieure au début');
+    }
+
+    const updated = await this.db.client.clipSuggestion.update({
+      where: { id: clip.id },
+      data: {
+        ...(body.title ? { title: body.title } : {}),
+        ...(body.selected !== undefined ? { selected: body.selected } : {}),
+        start,
+        end,
+        duration: Math.round((end - start) * 100) / 100,
+      },
+    });
+    await this.audit(request, organizationId, 'video_project.clip_updated', project.id, {
+      clip: clip.id,
+    });
+    return toClip(updated);
+  }
+
+  @Delete(':id/clips/:clipId')
+  @HttpCode(204)
+  @MinRole('EDITOR')
+  async removeClip(
+    @Req() request: AuthedRequest,
+    @Param('id') id: string,
+    @Param('clipId') clipId: string,
+  ): Promise<void> {
+    const organizationId = this.org(request);
+    const project = await this.find(organizationId, id);
+    const clip = await this.db.client.clipSuggestion.findFirst({
+      where: { id: clipId, projectId: project.id },
+    });
+    if (!clip) throw new NotFoundException('Clip introuvable');
+    await this.db.client.clipSuggestion.delete({ where: { id: clip.id } });
+    await this.audit(request, organizationId, 'video_project.clip_deleted', project.id, {
+      clip: clip.id,
+    });
+  }
+
   private org(request: AuthedRequest): string {
     if (!request.auth?.organizationId) {
       throw new NotFoundException('Organisation active requise (X-Organization-Id)');
@@ -182,6 +305,7 @@ export class VideoProjectsController {
       include: {
         transcript: true,
         subtitles: { orderBy: { createdAt: 'asc' } },
+        clips: { orderBy: [{ score: 'desc' }, { start: 'asc' }] },
         _count: { select: { subtitles: true } },
       },
     });
@@ -190,6 +314,7 @@ export class VideoProjectsController {
       ...toProject(row, row.transcript?.status ?? null, row._count.subtitles),
       transcript: row.transcript ? toTranscript(row.transcript) : null,
       subtitles: row.subtitles.map(toTrack),
+      clips: row.clips.map(toClip),
     };
   }
 

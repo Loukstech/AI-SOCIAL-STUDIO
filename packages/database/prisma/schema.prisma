@@ -63,6 +63,10 @@ enum SubtitleStyle {
   PROFESSIONAL
   MINIMAL
   KARAOKE
+  KEYWORDS
+  DYNAMIC
+  CREATOR
+  PODCAST
 }
 
 model User {
@@ -245,10 +249,31 @@ model VideoProject {
   brand           Brand?             @relation(fields: [brandId], references: [id], onDelete: SetNull)
   transcript      Transcript?
   subtitles       SubtitleTrack[]
+  clips           ClipSuggestion[]
 
   @@index([organizationId, createdAt])
   @@index([brandId])
   @@index([deletedAt])
+}
+
+/// Suggestion de clip (Mode A) : un passage autonome extrait de la transcription,
+/// avec un score de pertinence et sa justification. L'utilisateur garde le dernier mot.
+model ClipSuggestion {
+  id        String       @id @default(uuid())
+  projectId String
+  title     String
+  summary   String
+  start     Float
+  end       Float
+  duration  Float
+  score     Int
+  rationale String
+  selected  Boolean      @default(false)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  project   VideoProject @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, score])
 }
 
 model Transcript {
@@ -272,6 +297,8 @@ model SubtitleTrack {
   language  String        @default("fr")
   content   String
   cueCount  Int           @default(0)
+  /// Cues structurées, source de vérité pour les exports SRT / VTT / TXT.
+  cues      Json?
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
   project   VideoProject  @relation(fields: [projectId], references: [id], onDelete: Cascade)
