@@ -2,6 +2,7 @@ import {
   acceptedInvitationSchema,
   authResponseSchema,
   brandSchema,
+  calendarResponseSchema,
   clipSuggestionSchema,
   contentProjectDetailSchema,
   contentProjectSchema,
@@ -12,6 +13,10 @@ import {
   mediaAssetSchema,
   memberSchema,
   organizationSchema,
+  publicationDetailSchema,
+  publicationExportSchema,
+  publicationListSchema,
+  publishingReadinessSchema,
   socialAccountSchema,
   subtitleExportSchema,
   subtitleTrackSchema,
@@ -22,16 +27,22 @@ import {
   type AcceptedInvitation,
   type AuthResponse,
   type Brand,
+  type CalendarQuery,
+  type CalendarResponse,
+  type CancelPublicationInput,
   type ClipSuggestion,
+  type ConfirmPublicationInput,
   type ContentProject,
   type ContentProjectDetail,
   type CreateBrandInput,
   type CreateInvitationInput,
   type CreateMediaInput,
   type CreateOrganizationInput,
+  type CreatePublicationInput,
   type CreateSocialAccountInput,
   type CreatedInvitation,
   type DashboardStats,
+  type DuplicatePublicationInput,
   type GenerateContentInput,
   type HealthResponse,
   type Invitation,
@@ -39,15 +50,23 @@ import {
   type MediaAsset,
   type Member,
   type Organization,
+  type PublicationDetail,
+  type PublicationExport,
+  type PublicationList,
+  type PublicationQuery,
+  type PublishingReadiness,
   type RegisterInput,
+  type RejectPublicationInput,
   type RewriteVariantInput,
   type CreateVideoProjectInput,
+  type SchedulePublicationInput,
   type SocialAccount,
   type SubtitleExport,
   type SubtitleFormat,
   type SubtitleStyle,
   type SubtitleTrack,
   type UpdateClipInput,
+  type UpdatePublicationInput,
   type UpdateVariantInput,
   type UpdateSocialAccountInput,
   type UpdateTranscriptInput,
@@ -135,6 +154,17 @@ async function request<T>(path: string, schema: z.ZodType<T>, init: RequestInit 
 
 const post = <T>(path: string, schema: z.ZodType<T>, body: unknown): Promise<T> =>
   request(path, schema, { method: 'POST', body: JSON.stringify(body) });
+
+/** Sérialise les filtres en query string, en ignorant les valeurs vides. */
+function queryString(query: object): string {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(query)) {
+    if (value === undefined || value === null || value === '') continue;
+    params.set(key, String(value));
+  }
+  const serialized = params.toString();
+  return serialized ? `?${serialized}` : '';
+}
 
 export const api = {
   health: (signal?: AbortSignal): Promise<HealthResponse> =>
@@ -271,6 +301,57 @@ export const api = {
       }),
     removeClip: (id: string, clipId: string): Promise<unknown> =>
       request(`/video-projects/${id}/clips/${clipId}`, z.unknown(), { method: 'DELETE' }),
+  },
+
+  publishing: {
+    list: (query: Partial<PublicationQuery> = {}): Promise<PublicationList> =>
+      request(`/publications${queryString(query)}`, publicationListSchema),
+    readiness: (): Promise<PublishingReadiness> =>
+      request('/publications/readiness', publishingReadinessSchema),
+    detail: (id: string): Promise<PublicationDetail> =>
+      request(`/publications/${id}`, publicationDetailSchema),
+    export: (id: string): Promise<PublicationExport> =>
+      request(`/publications/${id}/export`, publicationExportSchema),
+    create: (body: CreatePublicationInput): Promise<PublicationDetail> =>
+      post('/publications', publicationDetailSchema, body),
+    update: (id: string, body: UpdatePublicationInput): Promise<PublicationDetail> =>
+      request(`/publications/${id}`, publicationDetailSchema, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+    submit: (id: string): Promise<PublicationDetail> =>
+      post(`/publications/${id}/submit`, publicationDetailSchema, {}),
+    requestApproval: (id: string): Promise<PublicationDetail> =>
+      post(`/publications/${id}/request-approval`, publicationDetailSchema, {}),
+    approve: (id: string): Promise<PublicationDetail> =>
+      post(`/publications/${id}/approve`, publicationDetailSchema, {}),
+    reject: (id: string, body: RejectPublicationInput): Promise<PublicationDetail> =>
+      post(`/publications/${id}/reject`, publicationDetailSchema, body),
+    reopen: (id: string): Promise<PublicationDetail> =>
+      post(`/publications/${id}/reopen`, publicationDetailSchema, {}),
+    schedule: (id: string, body: SchedulePublicationInput): Promise<PublicationDetail> =>
+      post(`/publications/${id}/schedule`, publicationDetailSchema, body),
+    cancel: (id: string, body: CancelPublicationInput): Promise<PublicationDetail> =>
+      post(`/publications/${id}/cancel`, publicationDetailSchema, body),
+    reschedule: (id: string, body: SchedulePublicationInput): Promise<PublicationDetail> =>
+      post(`/publications/${id}/reschedule`, publicationDetailSchema, body),
+    publish: (id: string): Promise<PublicationDetail> =>
+      post(`/publications/${id}/publish`, publicationDetailSchema, {}),
+    retry: (id: string): Promise<PublicationDetail> =>
+      post(`/publications/${id}/retry`, publicationDetailSchema, {}),
+    confirm: (id: string, body: ConfirmPublicationInput): Promise<PublicationDetail> =>
+      post(`/publications/${id}/confirm`, publicationDetailSchema, body),
+    duplicate: (id: string, body: DuplicatePublicationInput = {}): Promise<PublicationDetail> =>
+      post(`/publications/${id}/duplicate`, publicationDetailSchema, body),
+    remove: (id: string): Promise<unknown> =>
+      request(`/publications/${id}`, z.unknown(), { method: 'DELETE' }),
+    runDue: (): Promise<{ claimed: number; expired: number }> =>
+      post('/publications/run-due', z.object({ claimed: z.number(), expired: z.number() }), {}),
+  },
+
+  calendar: {
+    window: (query: CalendarQuery): Promise<CalendarResponse> =>
+      request(`/calendar${queryString(query)}`, calendarResponseSchema),
   },
 
   dashboard: (): Promise<DashboardStats> => request('/dashboard', dashboardStatsSchema),

@@ -36,6 +36,8 @@ export function DashboardPage({ onNavigate }: { onNavigate: (page: string) => vo
         <Stat label="Comptes sociaux" value={stats?.socialAccounts ?? '—'} />
         <Stat label="Projets vidéo" value={stats?.videoProjects ?? '—'} />
         <Stat label="Contenus générés" value={stats?.contentProjects ?? '—'} />
+        <Stat label="Publications" value={stats?.publications ?? '—'} />
+        <Stat label="Programmées" value={stats?.scheduledPublications ?? '—'} />
         <Stat label="Invitations en attente" value={stats?.pendingInvitations ?? '—'} />
       </div>
 
@@ -74,6 +76,22 @@ export function DashboardPage({ onNavigate }: { onNavigate: (page: string) => vo
             <li>
               <button className="text-accent hover:underline" onClick={() => onNavigate('content')}>
                 → Générer un contenu multiréseaux
+              </button>
+            </li>
+            <li>
+              <button
+                className="text-accent hover:underline"
+                onClick={() => onNavigate('publishing')}
+              >
+                → Soumettre une publication au circuit de validation
+              </button>
+            </li>
+            <li>
+              <button
+                className="text-accent hover:underline"
+                onClick={() => onNavigate('calendar')}
+              >
+                → Programmer dans le calendrier éditorial
               </button>
             </li>
           </ul>

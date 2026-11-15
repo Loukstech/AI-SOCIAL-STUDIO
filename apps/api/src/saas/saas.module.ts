@@ -12,6 +12,10 @@ import { OrganizationsController } from './organizations.controller.js';
 import { SocialAccountsController } from './social-accounts.controller.js';
 import { ContentController, ContentGenerationController } from '../content/content.controller.js';
 import { ContentService } from '../content/content.service.js';
+import { CalendarController } from '../publishing/calendar.controller.js';
+import { PublicationsController } from '../publishing/publications.controller.js';
+import { PublicationsService } from '../publishing/publications.service.js';
+import { PublishingScheduler } from '../publishing/scheduler.service.js';
 import { VideoPipelineService } from '../video/video-pipeline.service.js';
 import { VideoProjectsController } from '../video/video-projects.controller.js';
 
@@ -27,9 +31,20 @@ import { VideoProjectsController } from '../video/video-projects.controller.js';
     VideoProjectsController,
     ContentGenerationController,
     ContentController,
+    PublicationsController,
+    CalendarController,
     DashboardController,
   ],
-  providers: [Db, AuthService, AuthGuard, Reflector, VideoPipelineService, ContentService],
+  providers: [
+    Db,
+    AuthService,
+    AuthGuard,
+    Reflector,
+    VideoPipelineService,
+    ContentService,
+    PublicationsService,
+    PublishingScheduler,
+  ],
   exports: [AuthGuard],
 })
 export class SaasModule {}

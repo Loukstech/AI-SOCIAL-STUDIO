@@ -16,14 +16,17 @@ import {
   createOrganizationSchema,
   organizationRoleSchema,
   organizationSchema,
+  updateOrganizationTimezoneSchema,
   type AddMemberInput,
   type CreateOrganizationInput,
   type Member,
   type Organization,
+  type UpdateOrganizationTimezoneInput,
 } from '@ass/shared';
 import { Db, ZodPipe } from '../common/validation.js';
 import { AuthGuard, MinRole } from '../auth/auth.guard.js';
 import type { AuthedRequest } from '../auth/auth.types.js';
+import { isKnownTimezone } from '../publishing/timezone.js';
 import { Inject } from '@nestjs/common';
 
 function slugify(name: string): string {
@@ -54,6 +57,7 @@ export class OrganizationsController {
       id: m.organization.id,
       name: m.organization.name,
       slug: m.organization.slug,
+      timezone: m.organization.timezone,
       role: organizationSchema.shape.role.parse(m.role),
       createdAt: m.organization.createdAt.toISOString(),
     }));
@@ -84,8 +88,46 @@ export class OrganizationsController {
       id: org.id,
       name: org.name,
       slug: org.slug,
+      timezone: org.timezone,
       role: 'OWNER',
       createdAt: org.createdAt.toISOString(),
+    };
+  }
+
+  /**
+   * Fuseau de l'organisation (§11). Les publications restent stockées en UTC ;
+   * ce réglage ne sert qu'à l'affichage et à la saisie des dates.
+   */
+  @Patch(':id/timezone')
+  @MinRole('ADMIN')
+  async updateTimezone(
+    @Req() request: AuthedRequest,
+    @Param('id') id: string,
+    @Body(new ZodPipe(updateOrganizationTimezoneSchema))
+    body: UpdateOrganizationTimezoneInput,
+  ): Promise<Organization> {
+    this.assertActiveOrg(request, id);
+    const organization = await this.db.client.organization.findFirst({
+      where: { id, deletedAt: null },
+    });
+    if (!organization) throw new BadRequestException('Organisation introuvable');
+    if (!isKnownTimezone(body.timezone)) {
+      throw new BadRequestException(`Fuseau horaire inconnu : ${body.timezone}`);
+    }
+    const updated = await this.db.client.organization.update({
+      where: { id },
+      data: { timezone: body.timezone },
+    });
+    const membership = await this.db.client.member.findUnique({
+      where: { userId_organizationId: { userId: request.auth!.userId, organizationId: id } },
+    });
+    return {
+      id: updated.id,
+      name: updated.name,
+      slug: updated.slug,
+      timezone: updated.timezone,
+      role: organizationRoleSchema.parse(membership?.role ?? 'VIEWER'),
+      createdAt: updated.createdAt.toISOString(),
     };
   }
 

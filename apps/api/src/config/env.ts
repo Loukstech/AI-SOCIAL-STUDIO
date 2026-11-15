@@ -36,6 +36,17 @@ const envSchema = z
     // Fournisseur de transcription. `mock` = démonstration déterministe, sans appel externe.
     AI_PROVIDER: z.enum(['mock', 'openai']).default('mock'),
     OPENAI_API_KEY: z.string().min(10).optional(),
+    // Boucle de publication : réclame les publications arrivées à échéance.
+    // En production Render (une seule instance) elle tourne dans le processus API.
+    PUBLISH_SCHEDULER: z.enum(['on', 'off']).default('on'),
+    PUBLISH_TICK_SECONDS: z.coerce.number().int().min(10).max(3600).default(60),
+    // Transport de publication. Sans adaptateur OAuth natif, un webhook permet
+    // de confier l'envoi à un scénario externe (n8n, Make…). Absent = non configuré.
+    PUBLISH_WEBHOOK_URL: optionalUrl.refine((v) => v === undefined || /^https?:\/\//.test(v), {
+      message: 'PUBLISH_WEBHOOK_URL doit être une URL http(s)',
+    }),
+    PUBLISH_WEBHOOK_SECRET: z.string().min(8).optional(),
+    PUBLISH_WEBHOOK_TIMEOUT_MS: z.coerce.number().int().min(1000).max(30000).default(8000),
   })
   .superRefine((env, ctx) => {
     // En développement, l'API démarre sans base ni Redis et le signale dans /health.

@@ -1,4 +1,4 @@
-# État du déploiement (Phase 5)
+# État du déploiement (Phase 6)
 
 ## Services en ligne
 
@@ -40,6 +40,18 @@ AUTH_SECRET=<openssl rand -base64 48>
 En production ces valeurs sont injectées par Render, pas par un fichier. Le jeu complet attendu sur Render est : `NODE_ENV`, `CORS_ORIGINS`, `DATABASE_URL`, `REDIS_URL`, `AUTH_SECRET`, `WEB_APP_URL` (base des liens d'invitation, `https://ai-social-studio.pages.dev`). `INVITATION_TTL_HOURS` est optionnel (168 h par défaut).
 
 `AI_PROVIDER` vaut `mock` par défaut : la transcription de démonstration fonctionne sans variable supplémentaire. `OPENAI_API_KEY` n'est utile qu'une fois l'adaptateur réel écrit (Phase 4).
+
+Publication (Phase 6) — toutes optionnelles :
+
+| Variable                     | Défaut | Rôle                                                           |
+| ---------------------------- | ------ | -------------------------------------------------------------- |
+| `PUBLISH_SCHEDULER`          | `on`   | Boucle de réclamation des échéances dans le processus de l'API |
+| `PUBLISH_TICK_SECONDS`       | `60`   | Période de la boucle (10 à 3600)                               |
+| `PUBLISH_WEBHOOK_URL`        | —      | Délègue l'envoi à un scénario externe (n8n, Make)              |
+| `PUBLISH_WEBHOOK_SECRET`     | —      | Envoyé en `Authorization: Bearer` au webhook                   |
+| `PUBLISH_WEBHOOK_TIMEOUT_MS` | `8000` | Délai maximal d'un envoi                                       |
+
+Sans `PUBLISH_WEBHOOK_URL`, une tentative de publication échoue avec `NOT_CONFIGURED` et l'interface propose l'export ou la confirmation manuelle. C'est le comportement voulu : aucune publication n'est simulée.
 
 > ⚠️ **Piège Render :** `PUT /v1/services/{id}/env-vars` **remplace** l'intégralité de la liste. Pour ajouter une seule variable, utiliser `PUT /v1/services/{id}/env-vars/{key}` ou renvoyer la liste complète. Une mise à jour partielle vide les autres variables : le déploiement suivant construit correctement mais échoue au health check (`update_failed`), car `parseEnv` exige `DATABASE_URL` et `REDIS_URL` en production.
 
@@ -127,6 +139,13 @@ Le projet Cloudflare Pages est en **upload direct** (`ad_hoc`) : aucun dépôt G
 - Deux services (API + `crm-api`) : ne peuvent pas tous les deux rester allumés en permanence.
 - Solution : vérifier l'heure d'allumage du `crm-api`, ou passer l'API à Starter ($7/mois).
 
+### Programmation des publications
+
+- La boucle tourne dans le processus de l'API : pas de worker séparé, donc pas de consommation d'heures Render supplémentaire.
+- La réclamation est atomique (`UPDATE … WHERE status = 'SCHEDULED'`), ce qui protège d'un double envoi si une seconde instance démarre.
+- Une publication programmée depuis plus de 7 jours sans envoi passe en `EXPIRED` au lieu de partir en retard.
+- `POST /api/v1/publications/run-due` (ADMIN) force un passage immédiat, utile pour vérifier la production.
+
 ### CORS
 
 - En production, `CORS_ORIGINS=https://ai-social-studio.pages.dev` ; en local, `http://localhost:5173`.
@@ -154,6 +173,7 @@ pnpm test:phase2                  # parcours E2E : comptes sociaux chiffrés, in
 pnpm test:phase3                  # parcours E2E : projets vidéo, transcription, sous-titres SRT
 pnpm test:phase4                  # parcours E2E : édition, 7 styles, exports, clips
 pnpm test:phase5                  # parcours E2E : génération de contenus, assistant
+pnpm test:phase6                  # parcours E2E : publication, calendrier, fuseau
 
 # Déploiement
 pnpm --filter @ass/web build && npx wrangler pages deploy apps/web/dist --project-name ai-social-studio --branch main

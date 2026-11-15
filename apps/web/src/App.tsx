@@ -3,16 +3,27 @@ import type { Organization, User } from '@ass/shared';
 import { api, session, setActiveOrganization } from './lib/api';
 import { AuthPage } from './pages/AuthPage';
 import { BrandsPage } from './pages/BrandsPage';
+import { CalendarPage } from './pages/CalendarPage';
 import { ContentStudioPage } from './pages/ContentStudioPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { MediaPage } from './pages/MediaPage';
 import { OrganizationsPage } from './pages/OrganizationsPage';
+import { PublishingPage } from './pages/PublishingPage';
 import { SocialAccountsPage } from './pages/SocialAccountsPage';
 import { SystemPage } from './pages/SystemPage';
 import { VideoStudioPage } from './pages/VideoStudioPage';
 
 type Page =
-  'dashboard' | 'organizations' | 'brands' | 'media' | 'social' | 'video' | 'content' | 'system';
+  | 'dashboard'
+  | 'organizations'
+  | 'brands'
+  | 'media'
+  | 'social'
+  | 'video'
+  | 'content'
+  | 'publishing'
+  | 'calendar'
+  | 'system';
 
 const navigation: { id: Page; label: string }[] = [
   { id: 'dashboard', label: 'Tableau de bord' },
@@ -22,6 +33,8 @@ const navigation: { id: Page; label: string }[] = [
   { id: 'social', label: 'Comptes sociaux' },
   { id: 'video', label: 'AI Video Studio' },
   { id: 'content', label: 'AI Content Studio' },
+  { id: 'publishing', label: 'Centre de publication' },
+  { id: 'calendar', label: 'Calendrier éditorial' },
   { id: 'system', label: 'État du système' },
 ];
 
@@ -137,7 +150,7 @@ export function App() {
       <aside className="border-b border-border bg-surface lg:border-b-0 lg:border-r">
         <div className="flex h-full flex-col gap-6 p-5">
           <div>
-            <p className="text-xs font-medium text-accent">Phase 5 · AI Content Studio</p>
+            <p className="text-xs font-medium text-accent">Phase 6 · Publication</p>
             <h1 className="mt-1 text-lg font-semibold tracking-tight">AI Social Studio</h1>
           </div>
 
@@ -215,6 +228,8 @@ export function App() {
           {page === 'social' && <SocialAccountsPage />}
           {page === 'video' && <VideoStudioPage />}
           {page === 'content' && <ContentStudioPage />}
+          {page === 'publishing' && <PublishingPage />}
+          {page === 'calendar' && <CalendarPage />}
           {page === 'system' && <SystemPage />}
         </div>
       </main>

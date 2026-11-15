@@ -102,12 +102,12 @@ enum ContentLanguage {
 }
 
 model User {
-  id           String    @id @default(uuid())
-  email        String    @unique
+  id           String       @id @default(uuid())
+  email        String       @unique
   name         String
   passwordHash String
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
   deletedAt    DateTime?
   memberships  Member[]
   sessions     Session[]
@@ -130,20 +130,24 @@ model Session {
 }
 
 model Organization {
-  id        String       @id @default(uuid())
-  name      String
-  slug      String       @unique
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-  deletedAt DateTime?
-  members        Member[]
-  brands         Brand[]
-  media          MediaAsset[]
-  auditLogs      AuditLog[]
-  socialAccounts SocialAccount[]
-  invitations    Invitation[]
-  videoProjects  VideoProject[]
+  id              String           @id @default(uuid())
+  name            String
+  slug            String           @unique
+  /// Fuseau de référence pour l'affichage et la programmation (§11).
+  /// Les dates restent stockées en UTC ; ce champ ne sert qu'à la conversion.
+  timezone        String           @default("Europe/Paris")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  members         Member[]
+  brands          Brand[]
+  media           MediaAsset[]
+  auditLogs       AuditLog[]
+  socialAccounts  SocialAccount[]
+  invitations     Invitation[]
+  videoProjects   VideoProject[]
   contentProjects ContentProject[]
+  publications    Publication[]
 
   @@index([deletedAt])
 }
@@ -162,20 +166,21 @@ model Member {
 }
 
 model Brand {
-  id             String       @id @default(uuid())
-  organizationId String
-  name           String
-  description    String?
-  primaryColor   String?
-  toneOfVoice    String?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  deletedAt      DateTime?
-  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  media          MediaAsset[]
-  socialAccounts SocialAccount[]
-  videoProjects  VideoProject[]
+  id              String           @id @default(uuid())
+  organizationId  String
+  name            String
+  description     String?
+  primaryColor    String?
+  toneOfVoice     String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  deletedAt       DateTime?
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  media           MediaAsset[]
+  socialAccounts  SocialAccount[]
+  videoProjects   VideoProject[]
   contentProjects ContentProject[]
+  publications    Publication[]
 
   @@unique([organizationId, name])
   @@index([organizationId])
@@ -218,25 +223,26 @@ model AuditLog {
 /// Compte social rattaché à une organisation (et éventuellement à une marque).
 /// Les jetons OAuth sont stockés chiffrés en AES-256-GCM : jamais en clair.
 model SocialAccount {
-  id             String              @id @default(uuid())
-  organizationId String
-  brandId        String?
-  platform       SocialPlatform
-  username       String
-  displayName    String?
-  avatarUrl      String?
-  externalId     String?
-  accessToken    String?
-  refreshToken   String?
-  tokenExpiresAt DateTime?
-  scopes         String[]            @default([])
-  status         SocialAccountStatus @default(CONNECTED)
-  lastSyncedAt   DateTime?
-  createdAt      DateTime            @default(now())
-  updatedAt      DateTime            @updatedAt
-  deletedAt      DateTime?
-  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  brand          Brand?              @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  id                 String              @id @default(uuid())
+  organizationId     String
+  brandId            String?
+  platform           SocialPlatform
+  username           String
+  displayName        String?
+  avatarUrl          String?
+  externalId         String?
+  accessToken        String?
+  refreshToken       String?
+  tokenExpiresAt     DateTime?
+  scopes             String[]            @default([])
+  status             SocialAccountStatus @default(CONNECTED)
+  lastSyncedAt       DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  deletedAt          DateTime?
+  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  brand              Brand?              @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  publicationTargets PublicationTarget[]
 
   @@unique([organizationId, platform, username])
   @@index([organizationId])
@@ -344,23 +350,24 @@ model SubtitleTrack {
 /// Brief éditorial saisi par l'utilisateur, et ses déclinaisons par plateforme.
 /// Le fournisseur est tracé : `mock` (déterministe) ou un modèle réel en Phase 6.
 model ContentProject {
-  id             String          @id @default(uuid())
+  id             String           @id @default(uuid())
   organizationId String
   brandId        String?
   brief          String
   subject        String?
   objective      String?
   audience       String?
-  tone           ContentTone     @default(PROFESSIONAL)
-  contentType    ContentType     @default(PROMO)
-  language       ContentLanguage @default(FR)
-  provider       String          @default("mock")
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  tone           ContentTone      @default(PROFESSIONAL)
+  contentType    ContentType      @default(PROMO)
+  language       ContentLanguage  @default(FR)
+  provider       String           @default("mock")
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
   deletedAt      DateTime?
-  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  brand          Brand?          @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  brand          Brand?           @relation(fields: [brandId], references: [id], onDelete: SetNull)
   variants       ContentVariant[]
+  publications   Publication[]
 
   @@index([organizationId, createdAt])
   @@index([deletedAt])
@@ -368,23 +375,139 @@ model ContentProject {
 
 /// Variante propre à une plateforme : éditable indépendamment (§6.3).
 model ContentVariant {
-  id            String          @id @default(uuid())
-  projectId     String
-  platform      SocialPlatform
+  id           String          @id @default(uuid())
+  projectId    String
+  platform     SocialPlatform
   /// Une même plateforme peut porter une version FR et une version EN.
-  language      ContentLanguage @default(FR)
-  title         String?
-  body          String
-  hashtags      String[]        @default([])
-  callToAction  String?
-  charCount     Int             @default(0)
+  language     ContentLanguage @default(FR)
+  title        String?
+  body         String
+  hashtags     String[]        @default([])
+  callToAction String?
+  charCount    Int             @default(0)
   /// Dépassements et écarts aux règles de la plateforme, calculés à la génération.
-  warnings      String[]        @default([])
-  edited        Boolean         @default(false)
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
-  project       ContentProject  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  warnings     String[]        @default([])
+  edited       Boolean         @default(false)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  project      ContentProject  @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@unique([projectId, platform, language])
   @@index([projectId])
+}
+
+// --- Phase 6 : Publishing Center et Content Calendar (§10, §11) ---
+
+/// Formats de publication (§10.1). Le format doit être supporté par toutes les
+/// cibles d'une publication : la validation le vérifie avant l'envoi.
+enum PostType {
+  TEXT
+  IMAGE
+  GALLERY
+  VIDEO
+  REEL
+  SHORT
+  CAROUSEL
+  LINK
+}
+
+/// Cycle de vie d'une publication (§10.3).
+enum PublicationStatus {
+  DRAFT
+  READY_FOR_REVIEW
+  PENDING_APPROVAL
+  APPROVED
+  SCHEDULED
+  PUBLISHING
+  PUBLISHED
+  REJECTED
+  CANCELLED
+  FAILED
+  EXPIRED
+}
+
+/// `AUTO` publie à l'échéance ; `APPROVAL` exige l'accord d'un responsable (§10.2).
+enum PublicationMode {
+  AUTO
+  APPROVAL
+}
+
+/// Sort de chaque cible prise séparément : une publication peut réussir sur un
+/// réseau et échouer sur un autre sans perdre l'ensemble.
+enum PublicationTargetStatus {
+  PENDING
+  PUBLISHED
+  FAILED
+  SKIPPED
+}
+
+/// Publication planifiée vers un ou plusieurs comptes sociaux.
+model Publication {
+  id               String              @id @default(uuid())
+  organizationId   String
+  brandId          String?
+  createdById      String?
+  /// Rattachée à un projet du Content Studio quand elle en reprend le texte.
+  contentProjectId String?
+  title            String?
+  postType         PostType            @default(TEXT)
+  mode             PublicationMode     @default(AUTO)
+  status           PublicationStatus   @default(DRAFT)
+  /// Instant d'envoi prévu, stocké en UTC.
+  scheduledAt      DateTime?
+  publishedAt      DateTime?
+  /// Fuseau de l'organisation au moment de la programmation : conserve
+  /// l'intention de l'auteur même si le réglage de l'organisation change.
+  timezone         String              @default("Europe/Paris")
+  attempts         Int                 @default(0)
+  lastError        String?
+  rejectionReason  String?
+  mediaIds         String[]            @default([])
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+  deletedAt        DateTime?
+  organization     Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  brand            Brand?              @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  contentProject   ContentProject?     @relation(fields: [contentProjectId], references: [id], onDelete: SetNull)
+  targets          PublicationTarget[]
+  events           PublicationEvent[]
+
+  @@index([organizationId, status, scheduledAt])
+  @@index([organizationId, scheduledAt])
+  @@index([deletedAt])
+}
+
+/// Une ligne par compte social visé, avec son propre texte (§10.4).
+model PublicationTarget {
+  id              String                  @id @default(uuid())
+  publicationId   String
+  socialAccountId String
+  platform        SocialPlatform
+  body            String
+  title           String?
+  hashtags        String[]                @default([])
+  status          PublicationTargetStatus @default(PENDING)
+  externalId      String?
+  externalUrl     String?
+  error           String?
+  publishedAt     DateTime?
+  publication     Publication             @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+  socialAccount   SocialAccount           @relation(fields: [socialAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([publicationId, socialAccountId])
+  @@index([publicationId])
+}
+
+/// Journal des changements d'état : sert l'historique (§10.4) et l'audit.
+model PublicationEvent {
+  id            String             @id @default(uuid())
+  publicationId String
+  fromStatus    PublicationStatus?
+  toStatus      PublicationStatus
+  actorId       String?
+  reason        String?
+  createdAt     DateTime           @default(now())
+  publication   Publication        @relation(fields: [publicationId], references: [id], onDelete: Cascade)
+
+  @@index([publicationId, createdAt])
 }

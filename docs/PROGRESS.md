@@ -144,4 +144,27 @@ Détail : [PHASE5.md](PHASE5.md).
 
 ### Prochaine étape
 
-Phase 6 — Publishing Center et calendrier. Préalables : identifiants OAuth des plateformes pour publier réellement, stockage objet pour les médias.
+Phase 6 — Publishing Center et calendrier (voir ci-dessous).
+
+---
+
+## Phase 6 — Publishing Center et Content Calendar (15 novembre 2026)
+
+**Statut : TERMINÉE.**
+
+- Circuit de validation complet §10.3 (`DRAFT → READY_FOR_REVIEW → PENDING_APPROVAL → APPROVED → SCHEDULED → PUBLISHING → PUBLISHED`) plus `REJECTED`, `CANCELLED`, `FAILED`, `EXPIRED`. Une route par transition, table de transitions partagée par l'API, l'interface et les tests.
+- Modes `AUTO` (validation automatique tracée) et `APPROVAL` (approbation par un ADMIN, refus motivé obligatoire).
+- Huit formats de publication (§10.1) et capacités réelles par plateforme : formats acceptés, médias obligatoires, plafonds. Une cible invalide bloque la soumission avec un message explicite.
+- Publication honnête : sans identifiant OAuth, `publish()` échoue avec `NOT_CONFIGURED` plutôt que de simuler un succès. Replis proposés (export, publication manuelle), export copiable, et confirmation par URL externe obligatoire.
+- Programmation avec réclamation atomique (`updateMany` conditionnel), boucle interne toutes les 60 s, expiration à 7 jours, relance bornée à 3 tentatives.
+- Content Calendar §11 : vues mois, semaine, jour et liste, filtres réseau/marque/statut, glisser-déposer, création rapide, duplication.
+- Fuseau horaire par organisation (`Organization.timezone`), validation contre `Intl`, dates stockées en UTC et regroupement au fuseau de l'organisation.
+- Modèles `Publication`, `PublicationTarget`, `PublicationEvent` ; migration `20261115220000_phase6_publishing` appliquée sur Neon.
+- Interface : pages « Centre de publication » et « Calendrier éditorial », compteurs « Publications » et « Programmées » sur le tableau de bord.
+- Qualité : 115 tests unitaires (dont 43 sur la publication), `pnpm test:phase6` (106 vérifications E2E), lint/typecheck/build/format verts.
+
+Détail : [PHASE6.md](PHASE6.md).
+
+### Prochaine étape
+
+Phase 7 — AI Image Studio et Brand Kit (§7, §8), ou branchement d'un transport de publication réel (`PUBLISH_WEBHOOK_URL` ou adaptateurs OAuth).

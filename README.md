@@ -4,7 +4,7 @@ Studio de production et de distribution de contenus assisté par IA : une idée 
 
 Le document de référence est [AI_Social_Studio_Cahier_des_Charges.md](AI_Social_Studio_Cahier_des_Charges.md). L'avancement réel est tenu dans [docs/PROGRESS.md](docs/PROGRESS.md).
 
-**État actuel : Phase 5 (AI Content Studio).** Comptes, organisations multi-tenant, droits par rôle, marques, médiathèque (métadonnées), comptes sociaux avec jetons chiffrés, invitations de membres, projets vidéo avec transcription éditable, sept styles de sous-titres, exports SRT/VTT/TXT, extraction des meilleurs passages et génération de contenus multiréseaux avec assistant rédactionnel sont opérationnels. Le parcours OAuth des plateformes, le rendu ffmpeg et la publication arrivent aux phases suivantes.
+**État actuel : Phase 6 (Publishing Center et calendrier éditorial).** Comptes, organisations multi-tenant, droits par rôle, marques, médiathèque (métadonnées), comptes sociaux avec jetons chiffrés, invitations de membres, projets vidéo avec transcription éditable, sept styles de sous-titres, exports SRT/VTT/TXT, extraction des meilleurs passages, génération de contenus multiréseaux avec assistant rédactionnel, circuit de validation des publications, programmation et calendrier éditorial sont opérationnels. Le parcours OAuth des plateformes, le rendu ffmpeg et l'envoi réel vers les réseaux arrivent aux phases suivantes.
 
 ## Démarrage rapide
 
@@ -31,6 +31,7 @@ Le fichier `.env.local` contient tous les jetons de gestion (Neon, Upstash, Rend
 | `pnpm test:phase3`                   | Parcours E2E Phase 3 (projets vidéo, sous-titres)   |
 | `pnpm test:phase4`                   | Parcours E2E Phase 4 (édition, clips, exports)      |
 | `pnpm test:phase5`                   | Parcours E2E Phase 5 (génération de contenus)       |
+| `pnpm test:phase6`                   | Parcours E2E Phase 6 (publication, calendrier)      |
 | `pnpm lint` / `pnpm typecheck`       | Analyse statique                                    |
 | `pnpm format`                        | Formate le code avec Prettier                       |
 | `pnpm db:migrate` / `pnpm db:deploy` | Migrations Prisma (développement / production)      |

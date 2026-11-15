@@ -64,6 +64,8 @@ export const organizationSchema = z.object({
   id: z.string(),
   name: z.string(),
   slug: z.string(),
+  /** Fuseau de référence pour l'affichage et la programmation (§11). */
+  timezone: z.string(),
   role: organizationRoleSchema,
   createdAt: z.string(),
 });
@@ -141,6 +143,8 @@ export const dashboardStatsSchema = z.object({
   pendingInvitations: z.number(),
   videoProjects: z.number(),
   contentProjects: z.number(),
+  publications: z.number(),
+  scheduledPublications: z.number(),
   recentActivity: z.array(
     z.object({
       id: z.string(),
