@@ -170,6 +170,18 @@ describe('authorizationUrl', () => {
     expect(url).toContain('auth_type=rerequest');
   });
 
+  it('suit le format propre à TikTok : client_key, scopes à virgule, sans PKCE', () => {
+    const url = new URL(
+      authorizationUrl(oauthApps.TIKTOK, { ...base, scopes: ['user.info.basic', 'video.list'] }),
+    );
+    expect(url.searchParams.get('client_key')).toBe('client-123');
+    expect(url.searchParams.has('client_id')).toBe(false);
+    expect(url.searchParams.get('scope')).toBe('user.info.basic,video.list');
+    expect(oauthApps.TIKTOK.usesPkce).toBe(false);
+    // La demande de validation TikTok ne déclare que ce scope.
+    expect(providerSpecs.TIKTOK.scopes).toEqual(['user.info.basic']);
+  });
+
   it('pointe sur l’URL d’autorisation déclarée', () => {
     for (const app of Object.values(oauthApps)) {
       expect(authorizationUrl(app, base).startsWith(app.authorizeUrl)).toBe(true);

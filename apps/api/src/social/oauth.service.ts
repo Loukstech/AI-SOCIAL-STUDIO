@@ -10,6 +10,7 @@ import {
 import {
   assessConnection,
   authorizationUrl,
+  clientIdParam,
   missingCredentials,
   oauthApps,
   providerSpecs,
@@ -171,7 +172,7 @@ export class OAuthService {
       grant_type: 'authorization_code',
       code,
       redirect_uri: this.redirectUri()!,
-      client_id: this.credentials()[app.clientIdEnv]!,
+      [clientIdParam(app)]: this.credentials()[app.clientIdEnv]!,
       ...(app.requiresSecret ? { client_secret: this.credentials()[app.clientSecretEnv]! } : {}),
       ...(verifier ? { code_verifier: verifier } : {}),
     });
@@ -243,7 +244,7 @@ export class OAuthService {
     const tokens = await this.postForm(app.tokenUrl, {
       grant_type: 'refresh_token',
       refresh_token: refreshToken,
-      client_id: this.credentials()[app.clientIdEnv]!,
+      [clientIdParam(app)]: this.credentials()[app.clientIdEnv]!,
       ...(app.requiresSecret ? { client_secret: this.credentials()[app.clientSecretEnv]! } : {}),
     });
 

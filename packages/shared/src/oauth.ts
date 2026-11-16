@@ -33,6 +33,10 @@ export interface OAuthApp {
   docsUrl: string;
   clientIdEnv: string;
   clientSecretEnv: string;
+  /** Nom du paramètre portant l'identifiant client. TikTok exige `client_key`. */
+  clientIdParam?: string;
+  /** Séparateur des scopes dans l'URL d'autorisation. TikTok exige la virgule. */
+  scopeSeparator?: string;
 }
 
 /**
@@ -87,12 +91,15 @@ export const oauthApps: Record<OAuthAppKey, OAuthApp> = {
     authorizeUrl: 'https://www.tiktok.com/v2/auth/authorize/',
     tokenUrl: 'https://open.tiktokapis.com/v2/oauth/token/',
     infoUrl: 'https://open.tiktokapis.com/v2/user/info/',
-    usesPkce: true,
+    // Le flux web de Login Kit n'utilise pas PKCE (réservé au bureau et au mobile).
+    usesPkce: false,
     requiresSecret: true,
     supportsRefresh: true,
     docsUrl: 'https://developers.tiktok.com/doc/oauth-user-access-token-management',
     clientIdEnv: 'TIKTOK_CLIENT_ID',
     clientSecretEnv: 'TIKTOK_CLIENT_SECRET',
+    clientIdParam: 'client_key',
+    scopeSeparator: ',',
   },
   GOOGLE: {
     label: 'Google (YouTube)',
@@ -231,6 +238,11 @@ function withQuery(base: string, params: Array<[string, string]>): string {
   return `${beforeHash}${separator}${query}${hash}`;
 }
 
+/** Nom du paramètre d'identifiant client, à l'autorisation comme à l'échange de jeton. */
+export function clientIdParam(app: OAuthApp): string {
+  return app.clientIdParam ?? 'client_id';
+}
+
 /**
  * Construit l'URL d'autorisation. `code_challenge_method=S256` n'est ajouté
  * que si un défi est fourni : l'envoyer sans défi casse certains fournisseurs.
@@ -238,14 +250,14 @@ function withQuery(base: string, params: Array<[string, string]>): string {
 export function authorizationUrl(app: OAuthApp, params: AuthorizationParams): string {
   const entries: Array<[string, string]> = [
     ['response_type', 'code'],
-    ['client_id', params.clientId],
+    [clientIdParam(app), params.clientId],
     ['redirect_uri', params.redirectUri],
     ['state', params.state],
   ];
   if (params.scopes.length > 0) {
     // Google attend une liste séparée par des espaces, les autres une virgule
     // ou un espace : l'espace est accepté partout.
-    entries.push(['scope', params.scopes.join(' ')]);
+    entries.push(['scope', params.scopes.join(app.scopeSeparator ?? ' ')]);
   }
   if (params.codeChallenge) {
     entries.push(['code_challenge', params.codeChallenge]);
