@@ -333,6 +333,46 @@ describe('assessConnection', () => {
     });
     expect(result.state).toBe('EXPIRED');
   });
+
+  // TikTok ne délivre que des jetons de 24 h, renouvelables : sans cette
+  // exception, toute connexion TikTok serait signalée « expire bientôt ».
+  it('n’alerte pas quand un refresh token permet le renouvellement', () => {
+    const result = assessConnection({
+      status: 'CONNECTED',
+      hasAccessToken: true,
+      tokenExpiresAt: inHours(24),
+      hasRefreshToken: true,
+      supportsRefresh: true,
+      now,
+    });
+    expect(result.state).toBe('OK');
+    expect(result.guidance).toBeNull();
+    expect(result.hoursLeft).toBe(24);
+  });
+
+  it('alerte quand le renouvellement est impossible', () => {
+    const result = assessConnection({
+      status: 'CONNECTED',
+      hasAccessToken: true,
+      tokenExpiresAt: inHours(24),
+      hasRefreshToken: false,
+      supportsRefresh: true,
+      now,
+    });
+    expect(result.state).toBe('EXPIRING');
+  });
+
+  it('alerte si la plateforme ne sait pas renouveler', () => {
+    const result = assessConnection({
+      status: 'CONNECTED',
+      hasAccessToken: true,
+      tokenExpiresAt: inHours(24),
+      hasRefreshToken: true,
+      supportsRefresh: false,
+      now,
+    });
+    expect(result.state).toBe('EXPIRING');
+  });
 });
 
 describe('extractProfile', () => {

@@ -384,6 +384,8 @@ export class OAuthService {
         hasAccessToken: Boolean(row.accessToken),
         tokenExpiresAt: row.tokenExpiresAt,
         lastErrorAt: row.lastErrorAt,
+        hasRefreshToken: Boolean(row.refreshToken),
+        supportsRefresh: oauthApps[spec.app].supportsRefresh,
       });
       return {
         id: row.id,

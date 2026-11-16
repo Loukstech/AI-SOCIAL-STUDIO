@@ -312,6 +312,13 @@ export function assessConnection(input: {
   hasAccessToken: boolean;
   tokenExpiresAt: string | Date | null;
   lastErrorAt?: string | Date | null;
+  /**
+   * Un refresh token disponible rend un jeton d'accès court normal : TikTok
+   * n'en délivre que pour 24 h. Sans cette information, toute connexion
+   * TikTok serait signalée « expire bientôt » en permanence.
+   */
+  hasRefreshToken?: boolean;
+  supportsRefresh?: boolean;
   now?: Date;
 }): ConnectionAssessment {
   const now = input.now ?? new Date();
@@ -351,6 +358,9 @@ export function assessConnection(input: {
     };
   }
   if (hoursLeft !== null && hoursLeft <= EXPIRING_WINDOW_HOURS) {
+    // Un jeton court renouvelable n'est pas un incident : ne pas alerter.
+    const autoRenewable = Boolean(input.hasRefreshToken && input.supportsRefresh);
+    if (autoRenewable) return { state: 'OK', guidance: null, hoursLeft };
     return {
       state: 'EXPIRING',
       guidance: 'Le jeton expire bientôt : renouvelez-le pour éviter une coupure.',
