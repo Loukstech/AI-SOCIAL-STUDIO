@@ -1,4 +1,4 @@
-# État du déploiement (Phase 11)
+# État du déploiement (Phase 12)
 
 ## Services en ligne
 
@@ -222,6 +222,7 @@ pnpm test:phase8                  # parcours E2E : déclinaison multi-formats
 pnpm test:phase9                  # parcours E2E : connexions OAuth, santé des comptes
 pnpm test:phase10                 # parcours E2E : métriques, agrégats, export CSV
 pnpm test:phase11                 # parcours E2E : notifications, préférences, déduplication
+pnpm test:phase12                 # parcours E2E : commentaires, tâches, historique, validation client
 pnpm verify:png                   # export PNG dans Chrome headless
 
 # Déploiement

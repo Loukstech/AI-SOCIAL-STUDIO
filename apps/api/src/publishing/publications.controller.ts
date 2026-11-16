@@ -20,6 +20,7 @@ import {
   duplicatePublicationSchema,
   publicationQuerySchema,
   rejectPublicationSchema,
+  reviewerRoles,
   schedulePublicationSchema,
   updatePublicationSchema,
   type CancelPublicationInput,
@@ -36,7 +37,7 @@ import {
   type UpdatePublicationInput,
 } from '@ass/shared';
 import { ZodPipe } from '../common/validation.js';
-import { AuthGuard, MinRole } from '../auth/auth.guard.js';
+import { AuthGuard, MinRole, OnlyRoles } from '../auth/auth.guard.js';
 import type { AuthedRequest } from '../auth/auth.types.js';
 import { PublicationsService } from './publications.service.js';
 
@@ -129,7 +130,8 @@ export class PublicationsController {
 
   @Post(':id/approve')
   @HttpCode(200)
-  @MinRole('ADMIN')
+  @MinRole('VIEWER')
+  @OnlyRoles(...reviewerRoles)
   async approve(
     @Req() request: AuthedRequest,
     @Param('id') id: string,
@@ -139,7 +141,8 @@ export class PublicationsController {
 
   @Post(':id/reject')
   @HttpCode(200)
-  @MinRole('ADMIN')
+  @MinRole('VIEWER')
+  @OnlyRoles(...reviewerRoles)
   async reject(
     @Req() request: AuthedRequest,
     @Param('id') id: string,

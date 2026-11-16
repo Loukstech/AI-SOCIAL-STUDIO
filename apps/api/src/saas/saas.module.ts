@@ -5,6 +5,13 @@ import { AnalyticsService } from '../analytics/analytics.service.js';
 import { AuthController } from '../auth/auth.controller.js';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { AuthService } from '../auth/auth.service.js';
+import { CollaborationController } from '../collaboration/collaboration.controller.js';
+import { CommentsController } from '../collaboration/comments.controller.js';
+import { CommentsService } from '../collaboration/comments.service.js';
+import { HistoryService } from '../collaboration/history.service.js';
+import { PortfolioService } from '../collaboration/portfolio.service.js';
+import { TasksController } from '../collaboration/tasks.controller.js';
+import { TasksService } from '../collaboration/tasks.service.js';
 import { Db } from '../common/validation.js';
 import { BrandsController } from './brands.controller.js';
 import { DashboardController } from './dashboard.controller.js';
@@ -47,6 +54,9 @@ import { VideoProjectsController } from '../video/video-projects.controller.js';
     ImageProjectsController,
     DashboardController,
     NotificationsController,
+    CommentsController,
+    TasksController,
+    CollaborationController,
   ],
   providers: [
     Db,
@@ -61,6 +71,10 @@ import { VideoProjectsController } from '../video/video-projects.controller.js';
     OAuthService,
     AnalyticsService,
     NotificationsService,
+    CommentsService,
+    TasksService,
+    HistoryService,
+    PortfolioService,
     // Aucun fournisseur transactionnel n'est branché : le transport inerte
     // refuse d'envoyer et le dit. Remplacer cette ligne par une implémentation
     // réelle suffira à activer le canal e-mail partout.

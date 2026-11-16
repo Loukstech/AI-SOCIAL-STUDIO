@@ -2,20 +2,46 @@ import { z } from 'zod';
 
 /** Contrats partagés API / frontend de la Phase 1 (Fondations SaaS). */
 
-export const organizationRoles = ['OWNER', 'ADMIN', 'EDITOR', 'VIEWER'] as const;
+/**
+ * Rôles d'une organisation.
+ *
+ * `CLIENT` est le rôle d'un client final (§14) : il lit tout son espace,
+ * commente et valide les contenus qui le concernent, mais ne modifie rien et
+ * n'accède à aucun réglage.
+ */
+export const organizationRoles = ['OWNER', 'ADMIN', 'EDITOR', 'CLIENT', 'VIEWER'] as const;
 export const organizationRoleSchema = z.enum(organizationRoles);
 export type OrganizationRole = (typeof organizationRoles)[number];
+
+export const organizationRoleLabels: Record<OrganizationRole, string> = {
+  OWNER: 'Propriétaire',
+  ADMIN: 'Administrateur',
+  EDITOR: 'Éditeur',
+  CLIENT: 'Client',
+  VIEWER: 'Lecteur',
+};
+
+/** Rôles autorisés à valider ou refuser un contenu (§14, validation client). */
+export const reviewerRoles: OrganizationRole[] = ['OWNER', 'ADMIN', 'CLIENT'];
 
 export const mediaKinds = ['IMAGE', 'VIDEO', 'AUDIO', 'DOCUMENT'] as const;
 export const mediaKindSchema = z.enum(mediaKinds);
 export type MediaKind = (typeof mediaKinds)[number];
 
-/** Hiérarchie des droits : un rang plus petit est plus puissant. */
+/**
+ * Hiérarchie des droits : un rang plus petit est plus puissant.
+ *
+ * `CLIENT` s'insère entre `EDITOR` et `VIEWER` : il peut tout ce qu'un lecteur
+ * peut faire, plus commenter et valider — mais rien de ce qu'un éditeur peut
+ * faire. La validation, elle, ne se déduit pas du rang (un éditeur ne valide
+ * pas son propre contenu) : elle passe par `reviewerRoles`.
+ */
 export const roleRank: Record<OrganizationRole, number> = {
   OWNER: 0,
   ADMIN: 1,
   EDITOR: 2,
-  VIEWER: 3,
+  CLIENT: 3,
+  VIEWER: 4,
 };
 
 export function hasAtLeast(actual: OrganizationRole, required: OrganizationRole): boolean {

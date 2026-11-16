@@ -3,6 +3,7 @@ import {
   badgeLabel,
   socialPlatformLabels,
   type Organization,
+  type OrganizationRole,
   type SocialPlatform,
   type User,
 } from '@ass/shared';
@@ -11,6 +12,7 @@ import { AnalyticsPage } from './pages/AnalyticsPage';
 import { AuthPage } from './pages/AuthPage';
 import { BrandsPage } from './pages/BrandsPage';
 import { CalendarPage } from './pages/CalendarPage';
+import { ClientsPage } from './pages/ClientsPage';
 import { ContentStudioPage } from './pages/ContentStudioPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ImageStudioPage } from './pages/ImageStudioPage';
@@ -35,6 +37,7 @@ type Page =
   | 'calendar'
   | 'analytics'
   | 'notifications'
+  | 'clients'
   | 'system';
 
 const navigation: { id: Page; label: string }[] = [
@@ -49,6 +52,7 @@ const navigation: { id: Page; label: string }[] = [
   { id: 'publishing', label: 'Centre de publication' },
   { id: 'calendar', label: 'Calendrier éditorial' },
   { id: 'analytics', label: 'Analytics' },
+  { id: 'clients', label: 'Espace client' },
   { id: 'notifications', label: 'Notifications' },
   { id: 'system', label: 'État du système' },
 ];
@@ -82,6 +86,14 @@ export function App() {
   const [activeOrg, setActiveOrg] = useState<string | null>(session.organizationId);
   const [notice, setNotice] = useState(oauthReturn?.notice ?? '');
   const [unread, setUnread] = useState(0);
+
+  /**
+   * Rôle réel dans l'organisation active, tel que l'API le renvoie déjà dans la
+   * liste des organisations. Il sert à ne pas proposer une action que le
+   * serveur refusera — la décision d'autorisation, elle, reste côté API.
+   */
+  const activeRole: OrganizationRole =
+    organizations.find((organization) => organization.id === activeOrg)?.role ?? 'VIEWER';
 
   /**
    * Compteur de notifications non lues.
@@ -223,7 +235,7 @@ export function App() {
       <aside className="border-b border-border bg-surface lg:border-b-0 lg:border-r">
         <div className="flex h-full flex-col gap-6 p-5">
           <div>
-            <p className="text-xs font-medium text-accent">Phase 11 · Notifications</p>
+            <p className="text-xs font-medium text-accent">Phase 12 · Collaboration</p>
             <h1 className="mt-1 text-lg font-semibold tracking-tight">AI Social Studio</h1>
           </div>
 
@@ -307,9 +319,10 @@ export function App() {
           {page === 'video' && <VideoStudioPage />}
           {page === 'content' && <ContentStudioPage />}
           {page === 'image' && <ImageStudioPage />}
-          {page === 'publishing' && <PublishingPage />}
+          {page === 'publishing' && <PublishingPage role={activeRole} userId={user.id} />}
           {page === 'calendar' && <CalendarPage />}
           {page === 'analytics' && <AnalyticsPage />}
+          {page === 'clients' && <ClientsPage onOpen={(target) => setPage(target as Page)} />}
           {page === 'notifications' && (
             <NotificationsPage onNavigate={(target) => setPage(target as Page)} />
           )}

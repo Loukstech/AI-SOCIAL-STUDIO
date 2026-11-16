@@ -13,6 +13,8 @@ import {
   brandSchema,
   calendarResponseSchema,
   clipSuggestionSchema,
+  commentListSchema,
+  commentSchema,
   connectResultSchema,
   connectionHealthSchema,
   contentProjectDetailSchema,
@@ -21,12 +23,14 @@ import {
   dashboardStatsSchema,
   declineResultSchema,
   healthResponseSchema,
+  historySchema,
   imageProjectDetailSchema,
   imageProjectSchema,
   invitationSchema,
   mediaAssetSchema,
   memberSchema,
   organizationSchema,
+  portfolioSchema,
   publicationDetailSchema,
   publicationExportSchema,
   publicationListSchema,
@@ -34,6 +38,7 @@ import {
   socialAccountSchema,
   subtitleExportSchema,
   subtitleTrackSchema,
+  taskSchema,
   userSchema,
   videoProjectDetailSchema,
   videoProjectSchema,
@@ -42,6 +47,16 @@ import {
   type AnalyticsOverview,
   type AnalyticsQuery,
   type CollectResult,
+  type Comment,
+  type CommentList,
+  type CreateCommentInput,
+  type CreateTaskInput,
+  type History,
+  type Portfolio,
+  type Task,
+  type TaskQuery,
+  type UpdateCommentInput,
+  type UpdateTaskInput,
   type Measurement,
   type Ranking,
   type RecordMeasurementInput,
@@ -345,6 +360,32 @@ export const api = {
     readAll: (): Promise<UnreadCount> => post('/notifications/read-all', unreadCountSchema, {}),
     remove: (id: string): Promise<unknown> =>
       request(`/notifications/${id}`, z.unknown(), { method: 'DELETE' }),
+  },
+
+  collaboration: {
+    comments: (publicationId: string): Promise<CommentList> =>
+      request(`/publications/${publicationId}/comments`, commentListSchema),
+    addComment: (publicationId: string, body: CreateCommentInput): Promise<Comment> =>
+      post(`/publications/${publicationId}/comments`, commentSchema, body),
+    updateComment: (id: string, body: UpdateCommentInput): Promise<Comment> =>
+      request(`/comments/${id}`, commentSchema, { method: 'PATCH', body: JSON.stringify(body) }),
+    removeComment: (id: string): Promise<unknown> =>
+      request(`/comments/${id}`, z.unknown(), { method: 'DELETE' }),
+
+    tasks: (query: Partial<TaskQuery> = {}): Promise<Task[]> =>
+      request(`/tasks${queryString(query)}`, z.array(taskSchema)),
+    createTask: (body: CreateTaskInput): Promise<Task> => post('/tasks', taskSchema, body),
+    updateTask: (id: string, body: UpdateTaskInput): Promise<Task> =>
+      request(`/tasks/${id}`, taskSchema, { method: 'PATCH', body: JSON.stringify(body) }),
+    removeTask: (id: string): Promise<unknown> =>
+      request(`/tasks/${id}`, z.unknown(), { method: 'DELETE' }),
+
+    /** Chronologie fusionnée : transitions, audit, commentaires et tâches. */
+    history: (publicationId: string, limit?: number): Promise<History> =>
+      request(`/publications/${publicationId}/history${queryString({ limit })}`, historySchema),
+
+    /** Portefeuille : les organisations où l'utilisateur est membre. */
+    portfolio: (): Promise<Portfolio> => request('/portfolio', portfolioSchema),
   },
 
   contentGeneration: {

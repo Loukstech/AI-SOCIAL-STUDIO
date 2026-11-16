@@ -36,6 +36,8 @@ const TABLES = [
   'publicationMetric',
   'notification',
   'notificationPreference',
+  'comment',
+  'task',
   'imageProject',
   'auditLog',
 ];

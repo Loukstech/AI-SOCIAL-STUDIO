@@ -10,3 +10,4 @@ export * from './image.js';
 export * from './oauth.js';
 export * from './analytics.js';
 export * from './notifications.js';
+export * from './collaboration.js';

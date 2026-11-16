@@ -16,10 +16,22 @@ import { verifyToken, tokenFingerprint } from './crypto.js';
 import type { AuthedRequest } from './auth.types.js';
 
 const MIN_ROLE_KEY = 'minRole';
+const ONLY_ROLES_KEY = 'onlyRoles';
 
 /** Décorateur : rôle minimal requis sur une route d'organisation. */
 export const MinRole = (role: OrganizationRole): CustomDecorator<string> =>
   SetMetadata(MIN_ROLE_KEY, role);
+
+/**
+ * Décorateur : ensemble **explicite** de rôles autorisés.
+ *
+ * La hiérarchie linéaire ne suffit pas pour la validation client (§14) : un
+ * client doit pouvoir approuver un contenu, un éditeur ne doit pas pouvoir
+ * approuver le sien. Aucun rang ne satisfait ces deux contraintes à la fois,
+ * d'où cette liste nommée plutôt qu'un seuil.
+ */
+export const OnlyRoles = (...roles: OrganizationRole[]): CustomDecorator<string> =>
+  SetMetadata(ONLY_ROLES_KEY, roles);
 
 /**
  * Vérifie le jeton, la session active en base, l'organisation demandée
@@ -62,14 +74,22 @@ export class AuthGuard implements CanActivate {
         context.getHandler(),
         context.getClass(),
       ]) ?? 'VIEWER';
+    const onlyRoles = this.reflector.getAllAndOverride<OrganizationRole[] | undefined>(
+      ONLY_ROLES_KEY,
+      [context.getHandler(), context.getClass()],
+    );
 
     if (organizationId) {
       const member = await this.db.client.member.findUnique({
         where: { userId_organizationId: { userId: payload.sub, organizationId } },
       });
       if (!member) throw new ForbiddenException('Accès refusé à cette organisation');
-      if (!hasAtLeast(member.role, minRole)) {
+      const role = member.role as OrganizationRole;
+      if (!hasAtLeast(role, minRole)) {
         throw new ForbiddenException(`Rôle ${minRole} requis`);
+      }
+      if (onlyRoles && !onlyRoles.includes(role)) {
+        throw new ForbiddenException(`Réservé aux rôles : ${onlyRoles.join(', ')}`);
       }
       request.auth = {
         userId: payload.sub,

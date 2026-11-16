@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type {
   Brand,
+  OrganizationRole,
   PostType,
   Publication,
   PublicationDetail,
@@ -24,6 +25,11 @@ import {
 } from '@ass/shared';
 import { api } from '../lib/api';
 import { Alert, Button, Card, Empty, PageHeader, formatDate } from '../components/ui';
+import {
+  CommentThread,
+  PublicationHistory,
+  PublicationTasks,
+} from '../components/CollaborationPanel';
 
 interface TargetDraft {
   body: string;
@@ -93,7 +99,13 @@ function inTimezone(iso: string | null, timezone: string): string {
   }).format(date);
 }
 
-export function PublishingPage() {
+/**
+ * Centre de publication (§10) et collaboration (§14).
+ *
+ * Le rôle et l'identifiant sont reçus de l'application : la fiche d'un contenu
+ * adapte ce qu'elle propose au lieu d'exposer des boutons que l'API refusera.
+ */
+export function PublishingPage({ role, userId }: { role: OrganizationRole; userId: string }) {
   const [items, setItems] = useState<Publication[]>([]);
   const [detail, setDetail] = useState<PublicationDetail | null>(null);
   const [accounts, setAccounts] = useState<SocialAccount[]>([]);
@@ -818,21 +830,11 @@ export function PublishingPage() {
                 })}
               </Card>
 
-              <Card className="space-y-2">
-                <h2 className="text-sm font-semibold">Historique</h2>
-                <ul className="space-y-1 text-xs">
-                  {detail.events.map((event) => (
-                    <li key={event.id} className="flex flex-wrap gap-2 text-text-muted">
-                      <span className="tabular-nums">{formatDate(event.createdAt)}</span>
-                      <span>
-                        {event.fromStatus ? `${publicationStatusLabels[event.fromStatus]} → ` : ''}
-                        {publicationStatusLabels[event.toStatus]}
-                      </span>
-                      {event.reason && <span className="text-text">— {event.reason}</span>}
-                    </li>
-                  ))}
-                </ul>
-              </Card>
+              <PublicationHistory publicationId={detail.id} />
+
+              <CommentThread publicationId={detail.id} role={role} userId={userId} />
+
+              <PublicationTasks publicationId={detail.id} role={role} />
             </>
           )}
         </div>

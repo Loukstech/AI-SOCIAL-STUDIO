@@ -285,3 +285,26 @@ Détail : [PHASE11.md](PHASE11.md).
 ### Prochaine étape
 
 Collaboration (§14) : commentaires, assignation de tâches, historique des modifications exposé et validation client — puis branchement d'un transport e-mail réel quand un fournisseur transactionnel sera choisi.
+
+---
+
+## Phase 12 — Collaboration (§14)
+
+**Statut : TERMINÉE.**
+
+- Le §14 est traité comme une **règle de visibilité**, pas comme un rôle de plus : un commentaire interne reste interne, y compris pour un client autorisé à commenter. Le filtre est dans la requête (`visibility: 'CLIENT'`), pas à l'écran.
+- Nouveau rôle `CLIENT` (rang 3) et nouveau décorateur `@OnlyRoles(...)`. La validation par le client ne pouvait pas s'exprimer par un seuil : si `CLIENT` passe au-dessus d'`EDITOR`, l'éditeur valide son propre travail ; en dessous, le client ne valide plus. `approve` / `reject` portent donc `@MinRole('VIEWER')` **et** `@OnlyRoles('OWNER','ADMIN','CLIENT')`, avec la liste `reviewerRoles` partagée entre API et interface.
+- Une réponse hérite de la visibilité de son parent, dans les deux sens : un client répondant à un fil visible ne crée pas de note interne, et un interne répondant à un fil client ne divulgue rien. Répondre à un commentaire interne renvoie `404` (l'existence n'est pas divulguée), pas `403`.
+- Imbrication limitée à un niveau ; une réponse orpheline est traitée comme une racine plutôt que d'être perdue.
+- Historique fusionnant `PublicationEvent`, `AuditLog`, `Comment` et `Task` en une chronologie décroissante, avec libellés rédigés côté serveur. Une action inconnue s'affiche avec son code brut plutôt que de disparaître. Correction en cours de phase : les mesures sont journalisées contre `publication_target`, pas contre la publication — sans résoudre les cibles, `analytics.metric_recorded` manquait à l'historique.
+- Portefeuille : un client **est** une organisation (aucune entité dupliquée), les compteurs n'incluent que le visible, et une organisation sans activité renvoie `lastActivityAt: null`, jamais une date arbitraire.
+- Tâches gérées par l'agence (lecture ouverte à tous), `completedAt` suivant `status` dans les deux sens, assigné obligatoirement membre de l'organisation.
+- Interface : fil de discussion, tâches liées et historique dans la fiche d'un contenu ; nouvelle page « Espace client » ; `useAsyncData` pour un chargement sans `setState` synchrone dans un effet.
+- Modèles `Comment` et `Task`, énumérations `CommentVisibility` et `TaskStatus` ; migration `20261116080000_phase12_collaboration` appliquée sur Neon (14 migrations au total).
+- Qualité : 383 tests unitaires (36 nouveaux), `pnpm test:phase12` (83 vérifications E2E à quatre rôles), lint/typecheck/build/format verts. Phases 6, 10 et 11 rejouées en local après le changement RBAC : aucune régression.
+
+Détail : [PHASE12.md](PHASE12.md).
+
+### Prochaine étape
+
+Le cahier des charges est couvert jusqu'au §15. Restent les briques qui dépendent de tiers : transport e-mail transactionnel, identifiants des applications OAuth, moteur de rendu ffmpeg, stockage objet R2 et fournisseur de transcription.
