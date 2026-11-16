@@ -8,11 +8,27 @@ import {
 import { oauthApps } from '@ass/shared';
 import type { Db } from '../common/validation.js';
 import { decryptSecret, encryptSecret } from '../auth/crypto.js';
-import { parseEnv } from '../config/env.js';
+import { parseEnv, type Env } from '../config/env.js';
+import type { NotificationsService } from '../notifications/notifications.service.js';
 import { OAuthService, type FetchLike } from './oauth.service.js';
 import { createState } from './oauth-state.js';
 
 const SECRET = 'secret-de-test-suffisamment-long';
+
+/**
+ * Les notifications sont une dépendance **requise** en production : le
+ * constructeur les exige pour qu'un oubli de câblage se voie tout de suite.
+ * Ces tests-ci n'en exercent aucune, un double inerte suffit et préserve la
+ * signature réelle.
+ */
+const noNotifications = {
+  notifyPublication: async () => {},
+  notifySocialExpired: async () => {},
+} as unknown as NotificationsService;
+
+function serviceOf(db: Db, env: Env, transport?: FetchLike): OAuthService {
+  return new OAuthService(db, env, noNotifications, transport);
+}
 
 interface AccountRow {
   id: string;
@@ -155,7 +171,7 @@ const json = (body: unknown, status = 200): Response =>
 describe('OAuthService.authorize', () => {
   it('refuse honnêtement quand aucun identifiant d’application n’est configuré', async () => {
     const { db } = makeDb();
-    const service = new OAuthService(db, makeEnv());
+    const service = serviceOf(db, makeEnv());
     const error = await service
       .authorize('org-1', { platform: 'INSTAGRAM' })
       .catch((cause: unknown) => cause);
@@ -174,7 +190,7 @@ describe('OAuthService.authorize', () => {
       META_CLIENT_ID: 'meta-id-test',
       META_CLIENT_SECRET: 'secret',
     });
-    const error = await new OAuthService(db, env)
+    const error = await serviceOf(db, env)
       .authorize('org-1', { platform: 'FACEBOOK' })
       .catch((cause: unknown) => cause);
     expect((error as ConflictException).message).toContain('API_PUBLIC_URL');
@@ -183,7 +199,7 @@ describe('OAuthService.authorize', () => {
   it('construit une URL d’autorisation avec PKCE pour X', async () => {
     const { db } = makeDb();
     const env = makeEnv({ X_CLIENT_ID: 'client-x', X_CLIENT_SECRET: 'secret-x' });
-    const result = await new OAuthService(db, env).authorize('org-1', { platform: 'X' });
+    const result = await serviceOf(db, env).authorize('org-1', { platform: 'X' });
 
     expect(result.usesPkce).toBe(true);
     expect(result.authorizationUrl.startsWith(oauthApps.X.authorizeUrl)).toBe(true);
@@ -197,7 +213,7 @@ describe('OAuthService.authorize', () => {
   it('n’ajoute pas PKCE pour Meta, qui ne l’accepte pas sur ce flux', async () => {
     const { db } = makeDb();
     const env = makeEnv({ META_CLIENT_ID: 'meta-id-test', META_CLIENT_SECRET: 'secret' });
-    const result = await new OAuthService(db, env).authorize('org-1', { platform: 'FACEBOOK' });
+    const result = await serviceOf(db, env).authorize('org-1', { platform: 'FACEBOOK' });
     expect(result.usesPkce).toBe(false);
     expect(result.authorizationUrl).not.toContain('code_challenge');
   });
@@ -206,7 +222,7 @@ describe('OAuthService.authorize', () => {
     const { db } = makeDb([{ id: 'acc-1', organizationId: 'org-2' }]);
     const env = makeEnv({ X_CLIENT_ID: 'x-id-test', X_CLIENT_SECRET: 'secret' });
     await expect(
-      new OAuthService(db, env).authorize('org-1', { platform: 'X', socialAccountId: 'acc-1' }),
+      serviceOf(db, env).authorize('org-1', { platform: 'X', socialAccountId: 'acc-1' }),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
@@ -214,7 +230,7 @@ describe('OAuthService.authorize', () => {
     const { db } = makeDb([], []);
     const env = makeEnv({ X_CLIENT_ID: 'x-id-test', X_CLIENT_SECRET: 'secret' });
     await expect(
-      new OAuthService(db, env).authorize('org-1', { platform: 'X', brandId: 'brand-x' }),
+      serviceOf(db, env).authorize('org-1', { platform: 'X', brandId: 'brand-x' }),
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 });
@@ -230,14 +246,12 @@ describe('OAuthService.handleCallback', () => {
 
   it('refuse un retour incomplet', async () => {
     const { db } = makeDb();
-    await expect(new OAuthService(db, env).handleCallback({})).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(serviceOf(db, env).handleCallback({})).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('remonte le refus explicite de la plateforme', async () => {
     const { db } = makeDb();
-    const error = await new OAuthService(db, env)
+    const error = await serviceOf(db, env)
       .handleCallback({ error: 'access_denied', error_description: 'Utilisateur refusé' })
       .catch((cause: unknown) => cause);
     expect((error as BadRequestException).message).toContain('Utilisateur refusé');
@@ -246,7 +260,7 @@ describe('OAuthService.handleCallback', () => {
   it('refuse un état altéré', async () => {
     const { db } = makeDb();
     await expect(
-      new OAuthService(db, env).handleCallback({ state: 'faux.etat', code: 'code' }),
+      serviceOf(db, env).handleCallback({ state: 'faux.etat', code: 'code' }),
     ).rejects.toBeInstanceOf(BadRequestException);
   });
 
@@ -270,7 +284,7 @@ describe('OAuthService.handleCallback', () => {
       });
     });
 
-    const service = new OAuthService(db, env, http);
+    const service = serviceOf(db, env, http);
     const result = await service.handleCallback({
       state: state('X', { verifier: 'verifier-pkce' }),
       code: 'code-1',
@@ -301,7 +315,7 @@ describe('OAuthService.handleCallback', () => {
   it('exige un vérificateur PKCE pour une plateforme qui l’impose', async () => {
     const { db } = makeDb();
     const { http } = transport(async () => json({ access_token: 'x' }));
-    const error = await new OAuthService(db, env, http)
+    const error = await serviceOf(db, env, http)
       .handleCallback({ state: state('X'), code: 'code-1' })
       .catch((cause: unknown) => cause);
     expect((error as BadRequestException).message).toMatch(/PKCE/);
@@ -312,7 +326,7 @@ describe('OAuthService.handleCallback', () => {
     const { http } = transport(async () =>
       json({ error: 'invalid_grant', error_description: 'code expiré' }, 400),
     );
-    const error = await new OAuthService(db, env, http)
+    const error = await serviceOf(db, env, http)
       .handleCallback({ state: state('X', { verifier: 'verifier-pkce' }), code: 'code-1' })
       .catch((cause: unknown) => cause);
     expect(error).toBeInstanceOf(BadGatewayException);
@@ -323,7 +337,7 @@ describe('OAuthService.handleCallback', () => {
     const { db } = makeDb();
     const { http } = transport(async () => json({ token_type: 'bearer' }));
     await expect(
-      new OAuthService(db, env, http).handleCallback({
+      serviceOf(db, env, http).handleCallback({
         state: state('X', { verifier: 'verifier-pkce' }),
         code: 'code-1',
       }),
@@ -337,7 +351,7 @@ describe('OAuthService.handleCallback', () => {
         ? json({ access_token: 'jeton' })
         : json({ error: 'invalid' }, 401),
     );
-    const error = await new OAuthService(db, env, http)
+    const error = await serviceOf(db, env, http)
       .handleCallback({ state: state('X', { verifier: 'verifier-pkce' }), code: 'code-1' })
       .catch((cause: unknown) => cause);
     expect((error as BadGatewayException).message).toMatch(/401/);
@@ -362,7 +376,7 @@ describe('OAuthService.refresh', () => {
 
   it('refuse une plateforme sans jeton de rafraîchissement', async () => {
     const { db } = seeded({ platform: 'FACEBOOK' });
-    const error = await new OAuthService(db, env)
+    const error = await serviceOf(db, env)
       .refresh('org-1', 'acc-1')
       .catch((cause: unknown) => cause);
     expect(error).toBeInstanceOf(ConflictException);
@@ -371,14 +385,14 @@ describe('OAuthService.refresh', () => {
 
   it('refuse quand aucun jeton de rafraîchissement n’est enregistré', async () => {
     const { db } = seeded({ refreshToken: null });
-    await expect(new OAuthService(db, env).refresh('org-1', 'acc-1')).rejects.toBeInstanceOf(
+    await expect(serviceOf(db, env).refresh('org-1', 'acc-1')).rejects.toBeInstanceOf(
       ConflictException,
     );
   });
 
   it('refuse quand les identifiants d’application manquent', async () => {
     const { db } = seeded({});
-    const error = await new OAuthService(db, makeEnv())
+    const error = await serviceOf(db, makeEnv())
       .refresh('org-1', 'acc-1')
       .catch((cause: unknown) => cause);
     expect((error as ConflictException).message).toContain('X_CLIENT_ID');
@@ -389,7 +403,7 @@ describe('OAuthService.refresh', () => {
     const { http, calls } = transport(async () =>
       json({ access_token: 'nouveau', expires_in: 3600 }),
     );
-    const account = await new OAuthService(db, env, http).refresh('org-1', 'acc-1');
+    const account = await serviceOf(db, env, http).refresh('org-1', 'acc-1');
 
     expect(account.status).toBe('CONNECTED');
     expect(account.lastError).toBeNull();
@@ -401,7 +415,7 @@ describe('OAuthService.refresh', () => {
   it('conserve le jeton de rafraîchissement quand la réponse l’omet', async () => {
     const { db, accounts } = seeded({});
     const { http } = transport(async () => json({ access_token: 'nouveau' }));
-    await new OAuthService(db, env, http).refresh('org-1', 'acc-1');
+    await serviceOf(db, env, http).refresh('org-1', 'acc-1');
     expect(decryptSecret(accounts[0]!.refreshToken!, SECRET)).toBe('ancien-refresh');
   });
 
@@ -410,7 +424,7 @@ describe('OAuthService.refresh', () => {
     const { http } = transport(async () =>
       json({ access_token: 'nouveau', refresh_token: 'refresh-tournant' }),
     );
-    await new OAuthService(db, env, http).refresh('org-1', 'acc-1');
+    await serviceOf(db, env, http).refresh('org-1', 'acc-1');
     expect(decryptSecret(accounts[0]!.refreshToken!, SECRET)).toBe('refresh-tournant');
   });
 });
@@ -423,7 +437,7 @@ describe('OAuthService.sync', () => {
       { id: 'acc-1', platform: 'X', accessToken: encryptSecret('jeton', SECRET) },
     ]);
     const { http, calls } = transport(async () => json({}));
-    const account = await new OAuthService(db, makeEnv(), http).sync('org-1', 'acc-1');
+    const account = await serviceOf(db, makeEnv(), http).sync('org-1', 'acc-1');
 
     expect(calls).toHaveLength(0);
     expect(account.status).toBe('ERROR');
@@ -435,7 +449,7 @@ describe('OAuthService.sync', () => {
 
   it('refuse de synchroniser sans jeton lisible', async () => {
     const { db } = makeDb([{ id: 'acc-1', platform: 'X', accessToken: null }]);
-    await expect(new OAuthService(db, configured).sync('org-1', 'acc-1')).rejects.toBeInstanceOf(
+    await expect(serviceOf(db, configured).sync('org-1', 'acc-1')).rejects.toBeInstanceOf(
       BadRequestException,
     );
   });
@@ -453,7 +467,7 @@ describe('OAuthService.sync', () => {
     const { http } = transport(async () =>
       json({ data: { id: '42', username: 'nova-2', name: 'Nova Studio' } }),
     );
-    const account = await new OAuthService(db, configured, http).sync('org-1', 'acc-1');
+    const account = await serviceOf(db, configured, http).sync('org-1', 'acc-1');
 
     expect(account.status).toBe('CONNECTED');
     expect(account.displayName).toBe('Nova Studio');
@@ -469,14 +483,14 @@ describe('OAuthService.sync', () => {
       { id: 'acc-1', platform: 'X', accessToken: encryptSecret('jeton', SECRET) },
     ]);
     const { http } = transport(async () => json({ error: 'revoked' }, 401));
-    const account = await new OAuthService(db, configured, http).sync('org-1', 'acc-1');
+    const account = await serviceOf(db, configured, http).sync('org-1', 'acc-1');
     expect(account.status).toBe('ERROR');
     expect(account.lastError).toMatch(/401/);
   });
 
   it('ignore un compte d’une autre organisation', async () => {
     const { db } = makeDb([{ id: 'acc-1', organizationId: 'org-2' }]);
-    await expect(new OAuthService(db, configured).sync('org-1', 'acc-1')).rejects.toBeInstanceOf(
+    await expect(serviceOf(db, configured).sync('org-1', 'acc-1')).rejects.toBeInstanceOf(
       NotFoundException,
     );
   });
@@ -496,7 +510,7 @@ describe('OAuthService.health', () => {
         lastErrorAt: new Date(),
       },
     ]);
-    const rows = await new OAuthService(
+    const rows = await serviceOf(
       db,
       makeEnv({ X_CLIENT_ID: 'x-id-test', X_CLIENT_SECRET: 'x-secret-test' }),
     ).health('org-1');
@@ -521,7 +535,7 @@ describe('OAuthService.health', () => {
         refreshToken: encryptSecret('refresh-en-clair', SECRET),
       },
     ]);
-    const rows = await new OAuthService(db, makeEnv()).health('org-1');
+    const rows = await serviceOf(db, makeEnv()).health('org-1');
     const serialized = JSON.stringify(rows);
     expect(serialized).not.toContain('secret-en-clair');
     expect(serialized).not.toContain('refresh-en-clair');

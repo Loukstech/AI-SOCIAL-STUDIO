@@ -102,17 +102,19 @@ enum ContentLanguage {
 }
 
 model User {
-  id           String       @id @default(uuid())
-  email        String       @unique
-  name         String
-  passwordHash String
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  deletedAt    DateTime?
-  memberships  Member[]
-  sessions     Session[]
-  auditLogs    AuditLog[]
-  invitations  Invitation[]
+  id                      String                   @id @default(uuid())
+  email                   String                   @unique
+  name                    String
+  passwordHash            String
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  deletedAt               DateTime?
+  memberships             Member[]
+  sessions                Session[]
+  auditLogs               AuditLog[]
+  invitations             Invitation[]
+  notifications           Notification[]
+  notificationPreferences NotificationPreference[]
 
   @@index([deletedAt])
 }
@@ -130,25 +132,27 @@ model Session {
 }
 
 model Organization {
-  id              String           @id @default(uuid())
-  name            String
-  slug            String           @unique
+  id                      String                   @id @default(uuid())
+  name                    String
+  slug                    String                   @unique
   /// Fuseau de référence pour l'affichage et la programmation (§11).
   /// Les dates restent stockées en UTC ; ce champ ne sert qu'à la conversion.
-  timezone        String           @default("Europe/Paris")
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
-  deletedAt       DateTime?
-  members         Member[]
-  brands          Brand[]
-  media           MediaAsset[]
-  auditLogs       AuditLog[]
-  socialAccounts  SocialAccount[]
-  invitations     Invitation[]
-  videoProjects   VideoProject[]
-  contentProjects ContentProject[]
-  publications    Publication[]
-  imageProjects   ImageProject[]
+  timezone                String                   @default("Europe/Paris")
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  deletedAt               DateTime?
+  members                 Member[]
+  brands                  Brand[]
+  media                   MediaAsset[]
+  auditLogs               AuditLog[]
+  socialAccounts          SocialAccount[]
+  invitations             Invitation[]
+  videoProjects           VideoProject[]
+  contentProjects         ContentProject[]
+  publications            Publication[]
+  imageProjects           ImageProject[]
+  notifications           Notification[]
+  notificationPreferences NotificationPreference[]
 
   @@index([deletedAt])
 }
@@ -647,4 +651,96 @@ model ImageProject {
   @@index([brandId])
   @@index([deletedAt])
   @@index([sourceProjectId])
+}
+
+// --- Phase 11 : Notifications (§15) ---
+
+/// Événements que le cahier des charges demande de notifier (§15).
+///
+/// Les dix types existent dans le contrat, mais tous ne sont pas encore
+/// émis : un type dont le sous-système n'existe pas (rendu vidéo, facturation)
+/// est déclaré **non branché avec son motif** par `GET /notifications/catalog`,
+/// plutôt que de produire une notification creuse.
+enum NotificationType {
+  PUBLICATION_PUBLISHED
+  PUBLICATION_FAILED
+  APPROVAL_REQUESTED
+  CONTENT_APPROVED
+  CONTENT_REJECTED
+  VIDEO_READY
+  EXPORT_READY
+  SOCIAL_CONNECTION_EXPIRED
+  CREDITS_LOW
+  PAYMENT_FAILED
+}
+
+/// Canaux d'un abonnement. L'e-mail est enregistré même sans transport : la
+/// préférence survit au branchement d'un fournisseur.
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+}
+
+/// Sort réservé au canal e-mail, conservé pour chaque notification.
+///
+/// `NO_PROVIDER` n'est pas un échec technique : c'est l'aveu qu'aucun transport
+/// n'est configuré. Il est distinct de `FAILED`, qui suppose un envoi tenté.
+enum NotificationEmailStatus {
+  NOT_REQUESTED
+  NO_PROVIDER
+  SENT
+  FAILED
+}
+
+/// Notification interne destinée à un utilisateur d'une organisation.
+model Notification {
+  id             String                  @id @default(uuid())
+  organizationId String
+  userId         String
+  type           NotificationType
+  title          String
+  body           String
+  /// Entité concernée, pour ouvrir le bon écran depuis la notification.
+  entityType     String?
+  entityId       String?
+  url            String?
+  /// Clé de déduplication : deux appels portant la même clé se cumulent au
+  /// lieu de créer deux lignes.
+  dedupeKey      String?
+  /// Nombre d'occurrences agrégées sous cette clé.
+  occurrences    Int                     @default(1)
+  /// Faux quand l'utilisateur a coupé le canal interne pour ce type : la ligne
+  /// reste (c'est le journal de l'envoi e-mail) mais n'entre pas dans la boîte.
+  inApp          Boolean                 @default(true)
+  readAt         DateTime?
+  createdAt      DateTime                @default(now())
+  lastOccurredAt DateTime                @default(now())
+  emailStatus    NotificationEmailStatus @default(NOT_REQUESTED)
+  /// Motif exact quand l'e-mail n'est pas parti (transport absent, erreur…).
+  emailError     String?
+  organization   Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId, dedupeKey])
+  @@index([userId, organizationId, readAt])
+  @@index([organizationId, createdAt])
+}
+
+/// Préférences par utilisateur et par type d'événement (§15).
+///
+/// Une ligne absente signifie « valeur par défaut » : interne activé,
+/// e-mail désactivé. On n'écrit donc que ce que l'utilisateur change.
+model NotificationPreference {
+  id             String           @id @default(uuid())
+  organizationId String
+  userId         String
+  type           NotificationType
+  inApp          Boolean          @default(true)
+  email          Boolean          @default(false)
+  updatedAt      DateTime         @updatedAt
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId, type])
+  @@index([userId, organizationId])
 }

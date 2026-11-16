@@ -1,5 +1,10 @@
 import {
   acceptedInvitationSchema,
+  notificationCatalogResponseSchema,
+  notificationListSchema,
+  notificationPreferencesSchema,
+  notificationSchema,
+  unreadCountSchema,
   analyticsOverviewSchema,
   collectResultSchema,
   measurementSchema,
@@ -41,6 +46,14 @@ import {
   type Ranking,
   type RecordMeasurementInput,
   type TopPublications,
+  // `Notification` masquerait le type DOM homonyme : on l'alias ici.
+  type Notification as AppNotification,
+  type NotificationCatalogResponse,
+  type NotificationList,
+  type NotificationPreference,
+  type NotificationQuery,
+  type UnreadCount,
+  type UpdatePreferencesInput,
   type AuthResponse,
   type Brand,
   type CalendarQuery,
@@ -181,6 +194,9 @@ async function request<T>(path: string, schema: z.ZodType<T>, init: RequestInit 
 const post = <T>(path: string, schema: z.ZodType<T>, body: unknown): Promise<T> =>
   request(path, schema, { method: 'POST', body: JSON.stringify(body) });
 
+const put = <T>(path: string, schema: z.ZodType<T>, body: unknown): Promise<T> =>
+  request(path, schema, { method: 'PUT', body: JSON.stringify(body) });
+
 /** Requête dont la réponse n'est pas du JSON (export CSV). */
 async function requestText(path: string): Promise<string> {
   const headers = new Headers();
@@ -311,6 +327,24 @@ export const api = {
     /** CSV brut, téléchargé côté navigateur avec l'en-tête d'authentification. */
     exportCsv: (query: Partial<AnalyticsQuery> = {}): Promise<string> =>
       requestText(`/analytics/export.csv${queryString(query)}`),
+  },
+
+  notifications: {
+    list: (query: Partial<NotificationQuery> = {}): Promise<NotificationList> =>
+      request(`/notifications${queryString(query)}`, notificationListSchema),
+    unread: (): Promise<UnreadCount> => request('/notifications/unread-count', unreadCountSchema),
+    /** Événements du §15 et état réel du canal e-mail. */
+    catalog: (): Promise<NotificationCatalogResponse> =>
+      request('/notifications/catalog', notificationCatalogResponseSchema),
+    preferences: (): Promise<NotificationPreference[]> =>
+      request('/notifications/preferences', notificationPreferencesSchema),
+    savePreferences: (body: UpdatePreferencesInput): Promise<NotificationPreference[]> =>
+      put('/notifications/preferences', notificationPreferencesSchema, body),
+    read: (id: string): Promise<AppNotification> =>
+      post(`/notifications/${id}/read`, notificationSchema, {}),
+    readAll: (): Promise<UnreadCount> => post('/notifications/read-all', unreadCountSchema, {}),
+    remove: (id: string): Promise<unknown> =>
+      request(`/notifications/${id}`, z.unknown(), { method: 'DELETE' }),
   },
 
   contentGeneration: {

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
+  badgeLabel,
   socialPlatformLabels,
   type Organization,
   type SocialPlatform,
@@ -14,6 +15,7 @@ import { ContentStudioPage } from './pages/ContentStudioPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ImageStudioPage } from './pages/ImageStudioPage';
 import { MediaPage } from './pages/MediaPage';
+import { NotificationsPage } from './pages/NotificationsPage';
 import { OrganizationsPage } from './pages/OrganizationsPage';
 import { PublishingPage } from './pages/PublishingPage';
 import { SocialAccountsPage } from './pages/SocialAccountsPage';
@@ -32,6 +34,7 @@ type Page =
   | 'publishing'
   | 'calendar'
   | 'analytics'
+  | 'notifications'
   | 'system';
 
 const navigation: { id: Page; label: string }[] = [
@@ -46,6 +49,7 @@ const navigation: { id: Page; label: string }[] = [
   { id: 'publishing', label: 'Centre de publication' },
   { id: 'calendar', label: 'Calendrier éditorial' },
   { id: 'analytics', label: 'Analytics' },
+  { id: 'notifications', label: 'Notifications' },
   { id: 'system', label: 'État du système' },
 ];
 
@@ -77,6 +81,36 @@ export function App() {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [activeOrg, setActiveOrg] = useState<string | null>(session.organizationId);
   const [notice, setNotice] = useState(oauthReturn?.notice ?? '');
+  const [unread, setUnread] = useState(0);
+
+  /**
+   * Compteur de notifications non lues.
+   *
+   * Rafraîchi à chaque changement de page et toutes les 45 s : assez pour
+   * qu'une pastille ne mente pas longtemps, assez peu pour ne pas marteler
+   * l'API. Un échec remet la pastille à zéro plutôt que d'afficher un chiffre
+   * périmé.
+   */
+  useEffect(() => {
+    if (!user || !activeOrg) return;
+    let active = true;
+    const load = () => {
+      api.notifications
+        .unread()
+        .then((count) => {
+          if (active) setUnread(count.unread);
+        })
+        .catch(() => {
+          if (active) setUnread(0);
+        });
+    };
+    load();
+    const timer = setInterval(load, 45_000);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, [user, activeOrg, page]);
 
   const refreshOrganizations = useCallback(async () => {
     try {
@@ -189,7 +223,7 @@ export function App() {
       <aside className="border-b border-border bg-surface lg:border-b-0 lg:border-r">
         <div className="flex h-full flex-col gap-6 p-5">
           <div>
-            <p className="text-xs font-medium text-accent">Phase 10 · Analytics</p>
+            <p className="text-xs font-medium text-accent">Phase 11 · Notifications</p>
             <h1 className="mt-1 text-lg font-semibold tracking-tight">AI Social Studio</h1>
           </div>
 
@@ -199,13 +233,18 @@ export function App() {
                 key={item.id}
                 type="button"
                 onClick={() => setPage(item.id)}
-                className={`rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                className={`flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
                   page === item.id
                     ? 'bg-accent/12 font-medium text-accent'
                     : 'text-text-muted hover:bg-bg hover:text-text'
                 }`}
               >
-                {item.label}
+                <span>{item.label}</span>
+                {item.id === 'notifications' && badgeLabel(unread) && (
+                  <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-bg tabular-nums">
+                    {badgeLabel(unread)}
+                  </span>
+                )}
               </button>
             ))}
           </nav>
@@ -271,6 +310,9 @@ export function App() {
           {page === 'publishing' && <PublishingPage />}
           {page === 'calendar' && <CalendarPage />}
           {page === 'analytics' && <AnalyticsPage />}
+          {page === 'notifications' && (
+            <NotificationsPage onNavigate={(target) => setPage(target as Page)} />
+          )}
           {page === 'system' && <SystemPage />}
         </div>
       </main>

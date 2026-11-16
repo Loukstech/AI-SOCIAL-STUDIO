@@ -1,4 +1,4 @@
-# État du déploiement (Phase 10)
+# État du déploiement (Phase 11)
 
 ## Services en ligne
 
@@ -181,6 +181,14 @@ Le projet Cloudflare Pages est en **upload direct** (`ad_hoc`) : aucun dépôt G
 - `PublicationMetric` cascade avec sa cible : supprimer une publication supprime ses mesures, donc pas de ligne orpheline à nettoyer.
 - L'export CSV est généré en mémoire et renvoyé avec `Content-Disposition`; aucune écriture disque, compatible avec le système de fichiers éphémère de Render.
 
+### Notifications
+
+- Aucune variable d'environnement : le transport e-mail par défaut est **inerte**. Il refuse d'envoyer et l'enregistre (`NO_PROVIDER`) au lieu de simuler un succès.
+- Brancher un fournisseur transactionnel = remplacer `{ provide: MAIL_TRANSPORT, useValue: noopMailTransport }` dans `SaasModule` par une implémentation de `MailTransport`. Aucun autre fichier à toucher.
+- Les notifications sont écrites dans la même transaction logique que la transition qui les déclenche, mais leur échec est journalisé sans être propagé : une publication réussie n'est jamais annulée par un avertissement manquant.
+- La pastille de compteur interroge l'API toutes les 45 s : aucun WebSocket, aucun serveur supplémentaire, aucune consommation d'heures Render.
+- Aucun envoi sortant aujourd'hui, donc aucun coût ni quota.
+
 ### CORS
 
 - En production, `CORS_ORIGINS=https://ai-social-studio.pages.dev` ; en local, `http://localhost:5173`.
@@ -213,6 +221,7 @@ pnpm test:phase7                  # parcours E2E : visuels, Brand Kit, télécha
 pnpm test:phase8                  # parcours E2E : déclinaison multi-formats
 pnpm test:phase9                  # parcours E2E : connexions OAuth, santé des comptes
 pnpm test:phase10                 # parcours E2E : métriques, agrégats, export CSV
+pnpm test:phase11                 # parcours E2E : notifications, préférences, déduplication
 pnpm verify:png                   # export PNG dans Chrome headless
 
 # Déploiement

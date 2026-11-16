@@ -262,3 +262,26 @@ Détail : [PHASE10.md](PHASE10.md).
 ### Prochaine étape
 
 Collaboration temps réel (commentaires, présence) et notifications — les autres volets de la Phase 6 du cahier des charges ; la collecte automatique des statistiques s'activera d'elle-même dès que les applications OAuth de la Phase 9 auront leurs identifiants.
+
+---
+
+## Phase 11 — Notifications (§15)
+
+**Statut : TERMINÉE.**
+
+- Dix événements du §15 modélisés, **six réellement émis**. Les quatre autres (vidéo terminée, export disponible, solde de crédits, échec de paiement) dépendent de sous-systèmes inexistants et sont déclarés non disponibles **avec leur motif** dans `GET /notifications/catalog` — jamais une notification creuse.
+- Émission branchée sur `apply()`, le passage obligé de toute transition d'état : aucune notification ne peut être oubliée, et aucune ne peut annuler la transition qu'elle annonce (le service ne lève jamais).
+- Destinataires : responsables pour une demande de validation, auteur du contenu sinon ; l'auteur de l'action n'est jamais destinataire de son propre geste ; un auteur sorti de l'espace bascule vers les responsables.
+- Déduplication par clé stable, sans horodatage : deux échecs de la même publication se cumulent sur une ligne avec compteur, et la remettent en non-lue. Index unique protégé contre les courses.
+- Canal e-mail à quatre états : `NOT_REQUESTED`, `NO_PROVIDER`, `SENT`, `FAILED`. Sans transport, le statut est `NO_PROVIDER` avec le motif — jamais `SENT`. Transport injectable (`MAIL_TRANSPORT`), inerte par défaut.
+- Préférences par utilisateur et par type, valeurs par défaut comprises. Seules les lignes réellement modifiées sont écrites : un réglage non exprimé n'est pas figé. Interne actif et e-mail coupé par défaut, puisque rien ne peut partir.
+- Routes personnelles (aucun rôle requis, mais on ne voit que les siennes) ; une notification d'autrui ou d'une autre organisation renvoie `404`.
+- Interface : pastille de compteur rafraîchie toutes les 45 s, boîte de réception filtrable, statut e-mail en infobulle, grille de préférences, catalogue honnête des événements.
+- Modèles `Notification` et `NotificationPreference` ; migrations `20261116070000_phase11_notifications` et `20261116071000_phase11_notification_channel` appliquées sur Neon (13 migrations au total).
+- Qualité : 347 tests unitaires (46 nouveaux sur les notifications), `pnpm test:phase11` (86 vérifications E2E), lint/typecheck/build/format verts.
+
+Détail : [PHASE11.md](PHASE11.md).
+
+### Prochaine étape
+
+Collaboration (§14) : commentaires, assignation de tâches, historique des modifications exposé et validation client — puis branchement d'un transport e-mail réel quand un fournisseur transactionnel sera choisi.

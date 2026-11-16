@@ -31,9 +31,11 @@ import {
   type SchedulePublicationInput,
   type SocialPlatform,
   type UpdatePublicationInput,
+  type NotificationType,
 } from '@ass/shared';
 import { Db } from '../common/validation.js';
 import { ENV, type Env } from '../config/env.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { checkPublication, checkTarget } from './capabilities.js';
 import {
   createConnector,
@@ -120,11 +122,36 @@ const detailInclude = {
   events: { orderBy: { createdAt: 'asc' } },
 } as const;
 
+/**
+ * Événement du §15 déclenché par une transition, ou `null`.
+ *
+ * Table exhaustive : un état qui n'y figure pas ne notifie rien. Les états
+ * intermédiaires (brouillon, programmé, en cours) sont volontairement muets —
+ * notifier chaque étape transformerait la boîte en journal technique.
+ */
+export function notificationTypeFor(status: PublicationStatus): NotificationType | null {
+  switch (status) {
+    case 'PENDING_APPROVAL':
+      return 'APPROVAL_REQUESTED';
+    case 'APPROVED':
+      return 'CONTENT_APPROVED';
+    case 'REJECTED':
+      return 'CONTENT_REJECTED';
+    case 'PUBLISHED':
+      return 'PUBLICATION_PUBLISHED';
+    case 'FAILED':
+      return 'PUBLICATION_FAILED';
+    default:
+      return null;
+  }
+}
+
 @Injectable()
 export class PublicationsService {
   constructor(
     @Inject(Db) private readonly db: Db,
     @Inject(ENV) private readonly env: Env,
+    @Inject(NotificationsService) private readonly notifications: NotificationsService,
   ) {}
 
   // --- Lecture ---
@@ -827,6 +854,25 @@ export class PublicationsService {
     await this.db.client.publicationEvent.create({
       data: { publicationId: row.id, fromStatus: from, toStatus: to, actorId, reason },
     });
+    await this.notifyTransition(row, to, actorId);
+  }
+
+  /**
+   * Notifications adossées aux changements d'état (§15).
+   *
+   * `apply` est le passage obligé de toute transition : y brancher les
+   * notifications garantit qu'aucune n'est oubliée. L'appel est enveloppé par
+   * le service de notifications, qui ne lève jamais : une notification qui
+   * échoue ne défait pas une publication réussie.
+   */
+  private async notifyTransition(
+    row: PublicationRow,
+    to: PublicationStatus,
+    actorId: string | null,
+  ): Promise<void> {
+    const type = notificationTypeFor(to);
+    if (!type) return;
+    await this.notifications.notifyPublication(row.organizationId, row.id, type, { actorId });
   }
 
   private async ensureReady(row: PublicationRow): Promise<void> {

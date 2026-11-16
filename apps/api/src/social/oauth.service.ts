@@ -24,6 +24,7 @@ import {
 import { Db } from '../common/validation.js';
 import { ENV, type Env } from '../config/env.js';
 import { decryptSecret, encryptSecret } from '../auth/crypto.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { codeChallenge, createState, createVerifier, readState } from './oauth-state.js';
 import { extractProfile } from './profile.js';
 
@@ -63,6 +64,7 @@ export class OAuthService {
   constructor(
     @Inject(Db) private readonly db: Db,
     @Inject(ENV) private readonly env: Env,
+    @Inject(NotificationsService) private readonly notifications: NotificationsService,
     @Optional() @Inject(OAUTH_HTTP) private readonly injectedHttp?: FetchLike,
   ) {}
 
@@ -354,6 +356,12 @@ export class OAuthService {
     await this.audit(organizationId, actorId, 'social_account.sync_failed', account.id, {
       platform,
       message: message.slice(0, 200),
+    });
+    // §15 « connexion sociale expirée » : les responsables sont prévenus, avec
+    // le motif réel. La clé de déduplication évite qu'une synchronisation
+    // répétée en échec remplisse la boîte de réception.
+    await this.notifications.notifySocialExpired(organizationId, account.id, account.lastError, {
+      actorId,
     });
     return this.toView(account);
   }

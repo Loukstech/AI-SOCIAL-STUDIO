@@ -16,6 +16,9 @@ import { ContentController, ContentGenerationController } from '../content/conte
 import { ContentService } from '../content/content.service.js';
 import { ImageProjectsController } from '../image/image.controller.js';
 import { ImageService } from '../image/image.service.js';
+import { MAIL_TRANSPORT, noopMailTransport } from '../notifications/mail.js';
+import { NotificationsController } from '../notifications/notifications.controller.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { CalendarController } from '../publishing/calendar.controller.js';
 import { PublicationsController } from '../publishing/publications.controller.js';
 import { PublicationsService } from '../publishing/publications.service.js';
@@ -43,6 +46,7 @@ import { VideoProjectsController } from '../video/video-projects.controller.js';
     CalendarController,
     ImageProjectsController,
     DashboardController,
+    NotificationsController,
   ],
   providers: [
     Db,
@@ -56,6 +60,11 @@ import { VideoProjectsController } from '../video/video-projects.controller.js';
     ImageService,
     OAuthService,
     AnalyticsService,
+    NotificationsService,
+    // Aucun fournisseur transactionnel n'est branché : le transport inerte
+    // refuse d'envoyer et le dit. Remplacer cette ligne par une implémentation
+    // réelle suffira à activer le canal e-mail partout.
+    { provide: MAIL_TRANSPORT, useValue: noopMailTransport },
   ],
   exports: [AuthGuard],
 })

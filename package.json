@@ -29,7 +29,8 @@
     "db:migrate": "pnpm --filter @ass/database migrate:dev",
     "db:deploy": "pnpm --filter @ass/database migrate:deploy",
     "test:phase9": "node scripts/smoke-phase9.mjs",
-    "test:phase10": "node scripts/smoke-phase10.mjs"
+    "test:phase10": "node scripts/smoke-phase10.mjs",
+    "test:phase11": "node scripts/smoke-phase11.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
