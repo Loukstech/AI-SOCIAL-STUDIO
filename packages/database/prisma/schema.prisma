@@ -125,6 +125,7 @@ model User {
   creditTransactions      CreditTransaction[]
 
   @@index([deletedAt])
+  @@index([isSuperAdmin])
 }
 
 model Session {
@@ -169,6 +170,7 @@ model Organization {
   creditAccount           CreditAccount?
 
   @@index([deletedAt])
+  @@index([planKey])
 }
 
 model Member {
@@ -875,12 +877,19 @@ model CreditTransaction {
   accountId      String
   type           CreditTransactionType
   amount         Int
-  idempotencyKey String                @unique
+  idempotencyKey String
   label          String?
   actorId        String?
   createdAt      DateTime              @default(now())
+  /**
+   * Date de règlement d'une réservation : CONFIRM et REFUND s'excluent.
+   */
+  settledAt      DateTime?
   account        CreditAccount         @relation(fields: [accountId], references: [id], onDelete: Cascade)
   actor          User?                 @relation(fields: [actorId], references: [id], onDelete: SetNull)
 
+  // Une clé fournie par un client n'est unique que dans SON compte : sans
+  // cela, deux organisations choisissant la même clé partagent une écriture.
+  @@unique([accountId, idempotencyKey])
   @@index([accountId, createdAt])
 }

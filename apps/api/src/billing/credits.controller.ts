@@ -51,7 +51,9 @@ export class CreditsController {
     @Req() request: AuthedRequest,
     @Body(new ZodPipe(settleCreditsSchema)) body: SettleCreditsInput,
   ): Promise<CreditOperation> {
-    return creditOperationSchema.parse(await this.service.confirm(body, request.auth!.userId));
+    return creditOperationSchema.parse(
+      await this.service.confirm(request.auth!.organizationId, body, request.auth!.userId),
+    );
   }
 
   @Post('refund')
@@ -60,7 +62,9 @@ export class CreditsController {
     @Req() request: AuthedRequest,
     @Body(new ZodPipe(settleCreditsSchema)) body: SettleCreditsInput,
   ): Promise<CreditOperation> {
-    return creditOperationSchema.parse(await this.service.refund(body, request.auth!.userId));
+    return creditOperationSchema.parse(
+      await this.service.refund(request.auth!.organizationId, body, request.auth!.userId),
+    );
   }
 
   /** Octroi manuel : réservé à l'administration plateforme (§17). */
