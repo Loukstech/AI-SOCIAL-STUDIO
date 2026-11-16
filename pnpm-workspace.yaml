@@ -8,6 +8,7 @@ allowBuilds:
   '@prisma/engines': true
   '@swc/core': true
   esbuild: true
+  '@ffmpeg-installer/ffmpeg': true
   prisma: true
   unrs-resolver: true
   # Refusés explicitement : télémétrie et binaire natif facultatif. Sans décision,

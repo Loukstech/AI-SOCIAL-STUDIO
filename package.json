@@ -23,6 +23,7 @@
     "test:phase7": "node scripts/smoke-phase7.mjs",
     "test:phase8": "node scripts/smoke-phase8.mjs",
     "verify:png": "node scripts/verify-png-export.mjs",
+    "video:render": "node apps/worker-video/dist/cli.js",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "db:generate": "pnpm --filter @ass/database generate",
@@ -35,6 +36,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
     "eslint": "^10.14.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "^17.14.0",

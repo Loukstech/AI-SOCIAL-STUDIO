@@ -16,8 +16,20 @@ function slugify(name: string): string {
   return `${base || 'organisation'}-${randomUUID().slice(0, 6)}`;
 }
 
-function toUser(row: { id: string; email: string; name: string; createdAt: Date }): User {
-  return { id: row.id, email: row.email, name: row.name, createdAt: row.createdAt.toISOString() };
+function toUser(row: {
+  id: string;
+  email: string;
+  name: string;
+  createdAt: Date;
+  isSuperAdmin?: boolean;
+}): User {
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    createdAt: row.createdAt.toISOString(),
+    isSuperAdmin: row.isSuperAdmin === true,
+  };
 }
 
 @Injectable()

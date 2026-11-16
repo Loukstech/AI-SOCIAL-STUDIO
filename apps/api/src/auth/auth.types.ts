@@ -7,6 +7,7 @@ export interface AuthContext {
   sessionId: string;
   organizationId: string;
   role: OrganizationRole;
+  isSuperAdmin: boolean;
 }
 
 export interface AuthedRequest extends Request {

@@ -1,7 +1,14 @@
+import { stat } from 'node:fs/promises';
 import { Module } from '@nestjs/common';
+import { resolveFfmpegPath, runFfmpeg } from '@ass/worker-video';
 import { Reflector } from '@nestjs/core';
+import { AdminController } from '../admin/admin.controller.js';
+import { AdminService } from '../admin/admin.service.js';
+import { SuperAdminGuard } from '../admin/super-admin.guard.js';
 import { AnalyticsController } from '../analytics/analytics.controller.js';
 import { AnalyticsService } from '../analytics/analytics.service.js';
+import { CreditsController } from '../billing/credits.controller.js';
+import { CreditsService } from '../billing/credits.service.js';
 import { AuthController } from '../auth/auth.controller.js';
 import { AuthGuard } from '../auth/auth.guard.js';
 import { AuthService } from '../auth/auth.service.js';
@@ -33,10 +40,17 @@ import { PublishingScheduler } from '../publishing/scheduler.service.js';
 import { OAuthCallbackController } from '../social/oauth-callback.controller.js';
 import { OAuthService } from '../social/oauth.service.js';
 import { VideoPipelineService } from '../video/video-pipeline.service.js';
+import {
+  VIDEO_FFMPEG_CHECK,
+  VIDEO_RENDER_RUNNER,
+  VideoRenderService,
+} from '../video/video-render.service.js';
 import { VideoProjectsController } from '../video/video-projects.controller.js';
 
 @Module({
   controllers: [
+    AdminController,
+    CreditsController,
     AuthController,
     OrganizationsController,
     InvitationsController,
@@ -60,10 +74,25 @@ import { VideoProjectsController } from '../video/video-projects.controller.js';
   ],
   providers: [
     Db,
+    AdminService,
+    CreditsService,
+    SuperAdminGuard,
     AuthService,
     AuthGuard,
     Reflector,
     VideoPipelineService,
+    VideoRenderService,
+    { provide: VIDEO_RENDER_RUNNER, useValue: runFfmpeg },
+    {
+      provide: VIDEO_FFMPEG_CHECK,
+      useValue: async () => {
+        try {
+          return (await stat(resolveFfmpegPath())).isFile();
+        } catch {
+          return false;
+        }
+      },
+    },
     ContentService,
     PublicationsService,
     PublishingScheduler,

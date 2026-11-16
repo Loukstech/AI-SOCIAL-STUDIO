@@ -97,6 +97,7 @@ export class AuthGuard implements CanActivate {
         sessionId: session.id,
         organizationId,
         role: member.role,
+        isSuperAdmin: session.user.isSuperAdmin === true,
       };
       return true;
     }
@@ -109,6 +110,7 @@ export class AuthGuard implements CanActivate {
       sessionId: session.id,
       organizationId: '',
       role: 'VIEWER',
+      isSuperAdmin: session.user.isSuperAdmin === true,
     };
     return true;
   }

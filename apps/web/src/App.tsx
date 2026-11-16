@@ -8,14 +8,17 @@ import {
   type User,
 } from '@ass/shared';
 import { api, session, setActiveOrganization } from './lib/api';
+import { AdminPage } from './pages/AdminPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { AuthPage } from './pages/AuthPage';
 import { BrandsPage } from './pages/BrandsPage';
 import { CalendarPage } from './pages/CalendarPage';
+import { CreditsPage } from './pages/CreditsPage';
 import { ClientsPage } from './pages/ClientsPage';
 import { ContentStudioPage } from './pages/ContentStudioPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ImageStudioPage } from './pages/ImageStudioPage';
+import { LandingPage } from './pages/LandingPage';
 import { MediaPage } from './pages/MediaPage';
 import { NotificationsPage } from './pages/NotificationsPage';
 import { OrganizationsPage } from './pages/OrganizationsPage';
@@ -38,6 +41,8 @@ type Page =
   | 'analytics'
   | 'notifications'
   | 'clients'
+  | 'credits'
+  | 'admin'
   | 'system';
 
 const navigation: { id: Page; label: string }[] = [
@@ -53,6 +58,8 @@ const navigation: { id: Page; label: string }[] = [
   { id: 'calendar', label: 'Calendrier éditorial' },
   { id: 'analytics', label: 'Analytics' },
   { id: 'clients', label: 'Espace client' },
+  { id: 'credits', label: 'Crédits et quotas' },
+  { id: 'admin', label: 'Administration' },
   { id: 'notifications', label: 'Notifications' },
   { id: 'system', label: 'État du système' },
 ];
@@ -79,6 +86,8 @@ export function App() {
   // Retour OAuth : l'API redirige ici avec `connected` ou `error`. Lu une seule
   // fois au montage, avant tout état, pour ne rien poser dans un effet.
   const [oauthReturn] = useState(readOAuthReturn);
+  // La landing est publique : `#landing` suffit, sans session ni appel réseau.
+  const [showLanding, setShowLanding] = useState(() => window.location.hash === '#landing');
   const [user, setUser] = useState<User | null>(null);
   const [checking, setChecking] = useState(Boolean(session.token));
   const [page, setPage] = useState<Page>(() => oauthReturn?.page ?? 'dashboard');
@@ -200,6 +209,12 @@ export function App() {
     window.history.replaceState({}, '', window.location.pathname);
   }, [oauthReturn]);
 
+  useEffect(() => {
+    const sync = () => setShowLanding(window.location.hash === '#landing');
+    window.addEventListener('hashchange', sync);
+    return () => window.removeEventListener('hashchange', sync);
+  }, []);
+
   const onAuthenticated = useCallback(async () => {
     const me = await api.me().catch(() => null);
     setUser(me);
@@ -220,6 +235,17 @@ export function App() {
     setActiveOrg(null);
   }
 
+  if (showLanding) {
+    return (
+      <LandingPage
+        onEnter={() => {
+          window.history.replaceState({}, '', window.location.pathname);
+          setShowLanding(false);
+        }}
+      />
+    );
+  }
+
   if (checking) {
     return (
       <main className="flex min-h-dvh items-center justify-center text-sm text-text-muted">
@@ -228,37 +254,57 @@ export function App() {
     );
   }
 
-  if (!user) return <AuthPage onAuthenticated={() => void onAuthenticated()} />;
+  if (!user) {
+    return (
+      <div>
+        <AuthPage onAuthenticated={() => void onAuthenticated()} />
+        <div className="px-5 pb-8 text-center">
+          <button
+            type="button"
+            onClick={() => {
+              window.location.hash = 'landing';
+              setShowLanding(true);
+            }}
+            className="text-sm text-text-muted underline-offset-2 hover:text-accent hover:underline"
+          >
+            Découvrir AI Social Studio
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-dvh lg:grid lg:grid-cols-[248px_1fr]">
       <aside className="border-b border-border bg-surface lg:border-b-0 lg:border-r">
         <div className="flex h-full flex-col gap-6 p-5">
           <div>
-            <p className="text-xs font-medium text-accent">Phase 12 · Collaboration</p>
+            <p className="text-xs font-medium text-accent">Phase 13 · Administration & crédits</p>
             <h1 className="mt-1 text-lg font-semibold tracking-tight">AI Social Studio</h1>
           </div>
 
           <nav className="flex flex-wrap gap-1 lg:flex-col">
-            {navigation.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setPage(item.id)}
-                className={`flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-                  page === item.id
-                    ? 'bg-accent/12 font-medium text-accent'
-                    : 'text-text-muted hover:bg-bg hover:text-text'
-                }`}
-              >
-                <span>{item.label}</span>
-                {item.id === 'notifications' && badgeLabel(unread) && (
-                  <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-bg tabular-nums">
-                    {badgeLabel(unread)}
-                  </span>
-                )}
-              </button>
-            ))}
+            {navigation
+              .filter((item) => item.id !== 'admin' || user.isSuperAdmin)
+              .map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setPage(item.id)}
+                  className={`flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
+                    page === item.id
+                      ? 'bg-accent/12 font-medium text-accent'
+                      : 'text-text-muted hover:bg-bg hover:text-text'
+                  }`}
+                >
+                  <span>{item.label}</span>
+                  {item.id === 'notifications' && badgeLabel(unread) && (
+                    <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-bg tabular-nums">
+                      {badgeLabel(unread)}
+                    </span>
+                  )}
+                </button>
+              ))}
           </nav>
 
           <div className="mt-auto space-y-3 border-t border-border pt-4 text-sm">
@@ -323,6 +369,8 @@ export function App() {
           {page === 'calendar' && <CalendarPage />}
           {page === 'analytics' && <AnalyticsPage />}
           {page === 'clients' && <ClientsPage onOpen={(target) => setPage(target as Page)} />}
+          {page === 'credits' && <CreditsPage />}
+          {page === 'admin' && user.isSuperAdmin && <AdminPage />}
           {page === 'notifications' && (
             <NotificationsPage onNavigate={(target) => setPage(target as Page)} />
           )}

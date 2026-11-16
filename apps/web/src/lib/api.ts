@@ -1,5 +1,9 @@
 import {
   acceptedInvitationSchema,
+  adminAuditEntrySchema,
+  adminOrganizationSchema,
+  adminOverviewSchema,
+  adminUserSchema,
   notificationCatalogResponseSchema,
   notificationListSchema,
   notificationPreferencesSchema,
@@ -16,6 +20,10 @@ import {
   commentListSchema,
   commentSchema,
   connectResultSchema,
+  creditAccountSchema,
+  creditLedgerSchema,
+  creditOperationSchema,
+  planSchema,
   connectionHealthSchema,
   contentProjectDetailSchema,
   contentProjectSchema,
@@ -42,8 +50,13 @@ import {
   userSchema,
   videoProjectDetailSchema,
   videoProjectSchema,
+  videoRenderResultSchema,
   z,
   type AcceptedInvitation,
+  type AdminAuditEntry,
+  type AdminOrganization,
+  type AdminOverview,
+  type AdminUser,
   type AnalyticsOverview,
   type AnalyticsQuery,
   type CollectResult,
@@ -77,6 +90,9 @@ import {
   type ClipSuggestion,
   type ConfirmPublicationInput,
   type ConnectRequestInput,
+  type CreditAccount,
+  type CreditLedger,
+  type CreditOperation,
   type ConnectResult,
   type ConnectionHealth,
   type ContentProject,
@@ -102,6 +118,7 @@ import {
   type MediaAsset,
   type Member,
   type Organization,
+  type Plan,
   type PublicationDetail,
   type PublicationExport,
   type PublicationList,
@@ -109,7 +126,13 @@ import {
   type PublishingReadiness,
   type RegisterInput,
   type RejectPublicationInput,
+  type RenderVideoInput,
+  type VideoRenderResult,
+  type ReserveCreditsInput,
   type RewriteVariantInput,
+  type SettleCreditsInput,
+  type UpdateAdminUserInput,
+  type UpdateOrganizationPlanInput,
   type CreateVideoProjectInput,
   type SchedulePublicationInput,
   type SocialAccount,
@@ -261,6 +284,37 @@ export const api = {
       post('/organizations', organizationSchema, body),
     members: (id: string): Promise<Member[]> =>
       request(`/organizations/${id}/members`, z.array(memberSchema)),
+  },
+
+  admin: {
+    overview: (): Promise<AdminOverview> => request('/admin/overview', adminOverviewSchema),
+    plans: (): Promise<Plan[]> => request('/admin/plans', z.array(planSchema)),
+    users: (): Promise<AdminUser[]> => request('/admin/users', z.array(adminUserSchema)),
+    updateUser: (id: string, body: UpdateAdminUserInput): Promise<AdminUser> =>
+      request(`/admin/users/${id}`, adminUserSchema, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+    organizations: (): Promise<AdminOrganization[]> =>
+      request('/admin/organizations', z.array(adminOrganizationSchema)),
+    setPlan: (id: string, body: UpdateOrganizationPlanInput): Promise<AdminOrganization> =>
+      request(`/admin/organizations/${id}/plan`, adminOrganizationSchema, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+    audit: (limit = 30): Promise<AdminAuditEntry[]> =>
+      request(`/admin/audit?limit=${limit}`, z.array(adminAuditEntrySchema)),
+  },
+
+  credits: {
+    account: (): Promise<CreditAccount> => request('/credits/account', creditAccountSchema),
+    ledger: (): Promise<CreditLedger> => request('/credits/ledger', creditLedgerSchema),
+    reserve: (body: ReserveCreditsInput): Promise<CreditOperation> =>
+      post('/credits/reserve', creditOperationSchema, body),
+    confirm: (body: SettleCreditsInput): Promise<CreditOperation> =>
+      post('/credits/confirm', creditOperationSchema, body),
+    refund: (body: SettleCreditsInput): Promise<CreditOperation> =>
+      post('/credits/refund', creditOperationSchema, body),
   },
 
   brands: {
@@ -476,6 +530,8 @@ export const api = {
       }),
     removeClip: (id: string, clipId: string): Promise<unknown> =>
       request(`/video-projects/${id}/clips/${clipId}`, z.unknown(), { method: 'DELETE' }),
+    render: (id: string, body: RenderVideoInput): Promise<VideoRenderResult> =>
+      post(`/video-projects/${id}/render`, videoRenderResultSchema, body),
   },
 
   publishing: {

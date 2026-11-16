@@ -172,3 +172,48 @@ export const createSubtitleSchema = z.object({
   language: z.string().trim().min(2).max(10).optional(),
 });
 export type CreateSubtitleInput = z.infer<typeof createSubtitleSchema>;
+
+// --- Rendu ffmpeg (§22) ---
+
+export const renderFormats = ['PORTRAIT', 'SQUARE', 'LANDSCAPE'] as const;
+export const renderFormatSchema = z.enum(renderFormats);
+export type RenderFormat = (typeof renderFormats)[number];
+
+export const renderClipSchema = z
+  .object({
+    start: z.number().nonnegative(),
+    end: z.number().nonnegative(),
+    label: z.string().trim().max(160).optional(),
+  })
+  .refine((clip) => clip.end > clip.start, 'La fin doit être après le début');
+export type RenderClip = z.infer<typeof renderClipSchema>;
+
+/**
+ * `sourcePath` désigne un fichier local de la machine qui exécute l'API.
+ * Une URL `file://` du projet est acceptée en repli ; une URL http(s) est
+ * refusée explicitement : aucun téléchargement n'est simulé.
+ */
+export const renderVideoSchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048).optional(),
+  clips: z.array(renderClipSchema).min(1).max(20),
+  format: renderFormatSchema.default('PORTRAIT'),
+  subtitleTrackId: z.string().min(1).optional(),
+  outputName: z
+    .string()
+    .trim()
+    .min(1)
+    .max(120)
+    .regex(/^[\w.-]+$/, 'Nom de fichier invalide')
+    .optional(),
+});
+export type RenderVideoInput = z.infer<typeof renderVideoSchema>;
+
+export const videoRenderResultSchema = z.object({
+  projectId: z.string(),
+  outputPath: z.string(),
+  format: renderFormatSchema,
+  clips: z.number().int(),
+  subtitlesApplied: z.boolean(),
+  worker: z.literal('local-ffmpeg'),
+});
+export type VideoRenderResult = z.infer<typeof videoRenderResultSchema>;

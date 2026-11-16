@@ -1,14 +1,21 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type {
   Brand,
+  RenderFormat,
   SubtitleFormat,
   SubtitleStyle,
   TranscriptSegment,
   VideoProject,
   VideoProjectDetail,
   VideoProjectStatus,
+  VideoRenderResult,
 } from '@ass/shared';
-import { clipTargetDurations, subtitleStyleLabels, subtitleStyles } from '@ass/shared';
+import {
+  clipTargetDurations,
+  renderFormats,
+  subtitleStyleLabels,
+  subtitleStyles,
+} from '@ass/shared';
 import { api } from '../lib/api';
 import { Alert, Button, Card, Empty, Field, formatDate, PageHeader } from '../components/ui';
 
@@ -63,6 +70,10 @@ export function VideoStudioPage() {
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
   const [reload, setReload] = useState(0);
+  const [renderSourcePath, setRenderSourcePath] = useState('');
+  const [renderFormat, setRenderFormat] = useState<RenderFormat>('PORTRAIT');
+  const [renderSubtitleTrackId, setRenderSubtitleTrackId] = useState('');
+  const [renderResult, setRenderResult] = useState<VideoRenderResult | null>(null);
 
   const refresh = () => setReload((n) => n + 1);
 
@@ -101,6 +112,8 @@ export function VideoStudioPage() {
     if (loaded) {
       setDetail(loaded);
       setDraft(null);
+      setRenderResult(null);
+      setRenderSubtitleTrackId('');
     }
   }
 
@@ -176,6 +189,39 @@ export function VideoStudioPage() {
     if (!clips) return;
     setDetail({ ...detail, clips });
     setNotice(`${clips.length} clip(s) proposé(s) pour une cible de ${targetDuration} s.`);
+  }
+
+  async function renderVideo() {
+    if (!detail) return;
+    if (!renderSourcePath && !detail.sourceUrl?.startsWith('file:')) {
+      setError('Renseignez un fichier source local ou une URL file:// sur le projet.');
+      return;
+    }
+    const retained = detail.clips.filter((clip) => clip.selected);
+    const clips = retained.length
+      ? retained.map((clip) => ({ start: clip.start, end: clip.end, label: clip.title }))
+      : [
+          {
+            start: 0,
+            end: detail.durationSeconds ?? 30,
+            label: 'Vidéo complète',
+          },
+        ];
+    const result = await run(
+      () =>
+        api.videoProjects.render(detail.id, {
+          clips,
+          format: renderFormat,
+          ...(renderSourcePath ? { sourcePath: renderSourcePath } : {}),
+          ...(renderSubtitleTrackId ? { subtitleTrackId: renderSubtitleTrackId } : {}),
+        }),
+      'Rendu impossible',
+    );
+    if (!result) return;
+    setRenderResult(result);
+    setNotice(
+      `Rendu terminé : ${result.clips} clip(s) au format ${result.format}. Fichier : ${result.outputPath}`,
+    );
   }
 
   async function toggleClip(clipId: string, selected: boolean) {
@@ -612,9 +658,76 @@ export function VideoStudioPage() {
                 )}
               </section>
 
+              <section className="space-y-3 border-t border-border pt-4">
+                <div>
+                  <h3 className="text-sm font-medium">Rendu vidéo (ffmpeg)</h3>
+                  <p className="text-xs text-text-muted">
+                    Les passages retenus sont assemblés par le worker local. Une URL distante sans
+                    fichier local est refusée : aucun téléchargement n'est effectué.
+                  </p>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <Field
+                    label="Fichier source local"
+                    value={renderSourcePath}
+                    placeholder="C:\\video\\source.mp4"
+                    hint="Vide = URL file:// du projet"
+                    onChange={(event) => setRenderSourcePath(event.target.value)}
+                  />
+                  <label className="block space-y-1.5">
+                    <span className="block text-sm font-medium">Format</span>
+                    <select
+                      value={renderFormat}
+                      onChange={(event) => setRenderFormat(event.target.value as RenderFormat)}
+                      className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-accent"
+                    >
+                      {renderFormats.map((format) => (
+                        <option key={format} value={format}>
+                          {format}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block space-y-1.5">
+                    <span className="block text-sm font-medium">Sous-titres à incruster</span>
+                    <select
+                      value={renderSubtitleTrackId}
+                      onChange={(event) => setRenderSubtitleTrackId(event.target.value)}
+                      className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-accent"
+                    >
+                      <option value="">Aucun</option>
+                      {detail.subtitles.map((track) => (
+                        <option key={track.id} value={track.id}>
+                          {subtitleStyleLabels[track.style]} · {track.language}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <Button
+                    onClick={() => void renderVideo()}
+                    disabled={busy || (!renderSourcePath && !detail.sourceUrl?.startsWith('file:'))}
+                  >
+                    Rendre la vidéo
+                  </Button>
+                  <span className="text-xs text-text-muted">
+                    {detail.clips.filter((clip) => clip.selected).length} clip(s) retenu(s)
+                    {detail.clips.every((clip) => !clip.selected) && ' · vidéo complète'}
+                  </span>
+                </div>
+                {renderResult && (
+                  <p className="rounded-lg border border-success/40 bg-success/10 px-3 py-2 text-xs text-success">
+                    Fichier produit : {renderResult.outputPath} · {renderResult.clips} clip(s) ·
+                    sous-titres {renderResult.subtitlesApplied ? 'inclus' : 'absents'}
+                  </p>
+                )}
+              </section>
+
               <p className="border-t border-border pt-3 text-xs text-text-muted">
                 Mode démonstration : la transcription est générée localement (AI_PROVIDER=mock). Le
-                rendu vidéo et l'incrustation ffmpeg nécessitent le worker dédié.
+                rendu vidéo est assuré par le worker ffmpeg branché à l'API ; ffmpeg doit être
+                disponible sur la machine qui exécute l'API.
               </p>
             </div>
           )}

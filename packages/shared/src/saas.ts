@@ -69,6 +69,8 @@ export const userSchema = z.object({
   email: z.string(),
   name: z.string(),
   createdAt: z.string(),
+  /** Administration de la plateforme (§17), distincte des rôles d'organisation. */
+  isSuperAdmin: z.boolean(),
 });
 export type User = z.infer<typeof userSchema>;
 

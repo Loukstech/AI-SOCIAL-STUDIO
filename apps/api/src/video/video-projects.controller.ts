@@ -17,6 +17,7 @@ import {
 import {
   createSubtitleSchema,
   createVideoProjectSchema,
+  renderVideoSchema,
   subtitleFormatSchema,
   suggestClipsSchema,
   transcriptStatusSchema,
@@ -24,9 +25,12 @@ import {
   updateTranscriptSchema,
   updateVideoProjectSchema,
   videoProjectStatusSchema,
+  videoRenderResultSchema,
   type ClipSuggestion,
   type CreateSubtitleInput,
   type CreateVideoProjectInput,
+  type RenderVideoInput,
+  type VideoRenderResult,
   type SubtitleExport,
   type SubtitleTrack,
   type SuggestClipsInput,
@@ -41,6 +45,7 @@ import { AuthGuard, MinRole } from '../auth/auth.guard.js';
 import type { AuthedRequest } from '../auth/auth.types.js';
 import { DEFAULT_TARGET_DURATION } from './clips.js';
 import { VideoPipelineService, toClip, toTrack, toTranscript } from './video-pipeline.service.js';
+import { VideoRenderService } from './video-render.service.js';
 
 @Controller('video-projects')
 @UseGuards(AuthGuard)
@@ -48,6 +53,7 @@ export class VideoProjectsController {
   constructor(
     @Inject(Db) private readonly db: Db,
     @Inject(VideoPipelineService) private readonly pipeline: VideoPipelineService,
+    @Inject(VideoRenderService) private readonly renderer: VideoRenderService,
   ) {}
 
   @Get()
@@ -88,6 +94,23 @@ export class VideoProjectsController {
       name: project.name,
     });
     return toProject(project, null, 0);
+  }
+
+  /** Rendu ffmpeg local des clips retenus (§22). */
+  @Post(':id/render')
+  @MinRole('EDITOR')
+  async render(
+    @Req() request: AuthedRequest,
+    @Param('id') id: string,
+    @Body(new ZodPipe(renderVideoSchema)) body: RenderVideoInput,
+  ): Promise<VideoRenderResult> {
+    const result = await this.renderer.renderProject(this.org(request), id, body);
+    await this.audit(request, this.org(request), 'video_project.rendered', id, {
+      format: result.format,
+      clips: result.clips,
+      subtitlesApplied: String(result.subtitlesApplied),
+    });
+    return videoRenderResultSchema.parse(result);
   }
 
   @Get(':id')

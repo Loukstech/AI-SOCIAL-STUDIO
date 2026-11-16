@@ -8,7 +8,10 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn());
 });
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  window.location.hash = '';
+  vi.unstubAllGlobals();
+});
 
 describe('App', () => {
   it('affiche l’écran de connexion quand aucune session n’existe', () => {
@@ -29,5 +32,15 @@ describe('App', () => {
     setSessionToken('jeton-de-test');
     render(<App />);
     expect(screen.getByText('Vérification de la session…')).toBeInTheDocument();
+  });
+
+  it('affiche une landing publique sans session via #landing', () => {
+    window.location.hash = '#landing';
+    render(<App />);
+    expect(
+      screen.getByRole('heading', { name: /De l'idée à la campagne multiréseaux/ }),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getAllByRole('button', { name: "Ouvrir l'application" })[0]!);
+    expect(screen.getByRole('button', { name: 'Se connecter' })).toBeInTheDocument();
   });
 });

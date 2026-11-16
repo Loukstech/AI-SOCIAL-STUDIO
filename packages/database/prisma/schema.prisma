@@ -108,6 +108,8 @@ model User {
   email                   String                   @unique
   name                    String
   passwordHash            String
+  /// Administration de la plateforme (§17), sans rapport avec les rôles d'organisation.
+  isSuperAdmin            Boolean                  @default(false)
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
   deletedAt               DateTime?
@@ -120,6 +122,7 @@ model User {
   comments                Comment[]                @relation("CommentAuthor")
   tasksAssigned           Task[]                   @relation("TaskAssignee")
   tasksCreated            Task[]                   @relation("TaskCreator")
+  creditTransactions      CreditTransaction[]
 
   @@index([deletedAt])
 }
@@ -143,6 +146,9 @@ model Organization {
   /// Fuseau de référence pour l'affichage et la programmation (§11).
   /// Les dates restent stockées en UTC ; ce champ ne sert qu'à la conversion.
   timezone                String                   @default("Europe/Paris")
+  /// Plan courant (§16.1). Les plans et leurs quotas sont des lignes de `Plan`,
+  /// pas des constantes du code.
+  planKey                 String                   @default("free")
   createdAt               DateTime                 @default(now())
   updatedAt               DateTime                 @updatedAt
   deletedAt               DateTime?
@@ -160,6 +166,7 @@ model Organization {
   notificationPreferences NotificationPreference[]
   comments                Comment[]
   tasks                   Task[]
+  creditAccount           CreditAccount?
 
   @@index([deletedAt])
 }
@@ -820,4 +827,60 @@ model Task {
   @@index([organizationId, status, dueAt])
   @@index([organizationId, assigneeId, status])
   @@index([entityType, entityId])
+}
+
+/// Plans configurables (§16.1) : prix, quotas et fonctionnalités vivent ici,
+/// jamais dans le code. `monthlyCredits: null` signifie un plan sans plafond.
+model Plan {
+  id             String          @id @default(uuid())
+  key            String          @unique
+  name           String
+  monthlyCredits Int?
+  /// Fonctionnalités et limites non créditées (ex. nombre de marques).
+  limits         Json?
+  active         Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  accounts       CreditAccount[]
+}
+
+enum CreditTransactionType {
+  GRANT
+  RESERVE
+  CONFIRM
+  REFUND
+  ADJUST
+}
+
+/// Solde disponible et réservé d'une organisation. Une seule ligne par org.
+model CreditAccount {
+  id             String              @id @default(uuid())
+  organizationId String              @unique
+  planKey        String
+  balance        Int                 @default(0)
+  reserved       Int                 @default(0)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  organization   Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan           Plan                @relation(fields: [planKey], references: [key], onUpdate: Cascade)
+  transactions   CreditTransaction[]
+
+  @@index([planKey])
+}
+
+/// Journal immuable : une ligne par mouvement, identifiée par une clé
+/// d'idempotence unique pour empêcher les doubles débits (§16.2).
+model CreditTransaction {
+  id             String                @id @default(uuid())
+  accountId      String
+  type           CreditTransactionType
+  amount         Int
+  idempotencyKey String                @unique
+  label          String?
+  actorId        String?
+  createdAt      DateTime              @default(now())
+  account        CreditAccount         @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  actor          User?                 @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([accountId, createdAt])
 }
