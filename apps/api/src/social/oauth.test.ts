@@ -213,6 +213,22 @@ describe('missingCredentials', () => {
   });
 });
 
+describe('scopes TikTok', () => {
+  // TikTok refuse l'autorisation si un scope demandé n'est pas activé sur
+  // l'application. Tant que la Content Posting API n'est pas validée côté
+  // portail, seuls les scopes de Login Kit doivent être demandés : sinon
+  // l'écran d'autorisation échoue et aucun compte ne peut être connecté.
+  it('ne demande que les scopes de Login Kit', () => {
+    expect(providerSpecs.TIKTOK.scopes).toEqual(['user.info.basic']);
+  });
+
+  it('ne demande aucun scope de publication', () => {
+    for (const scope of providerSpecs.TIKTOK.scopes) {
+      expect(scope).not.toMatch(/publish|upload/);
+    }
+  });
+});
+
 describe('assessConnection', () => {
   const now = new Date('2026-01-01T12:00:00.000Z');
   const inHours = (hours: number): string =>

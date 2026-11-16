@@ -18,6 +18,8 @@ packages/database/src/generated/
 
 # Divers
 *.log
+# Fichiers de travail temporaires (peuvent contenir des jetons)
+.tmp-*
 .DS_Store
 Thumbs.db
 .vscode/*

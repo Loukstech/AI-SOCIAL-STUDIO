@@ -166,7 +166,11 @@ export const providerSpecs: Record<SocialPlatform, ProviderSpec> = {
   TIKTOK: {
     app: 'TIKTOK',
     label: 'TikTok',
-    scopes: ['user.info.basic', 'video.publish'],
+    // Login Kit uniquement : l'application lit le profil du compte connecté.
+    // `video.publish` (Content Posting API) est volontairement absent tant que
+    // TikTok n'a pas validé la publication directe. La publication retombe
+    // alors sur l'export manuel (voir `platformCapabilities.TIKTOK.fallback`).
+    scopes: ['user.info.basic'],
     note: 'La publication directe est soumise à validation par TikTok.',
   },
   YOUTUBE: {
