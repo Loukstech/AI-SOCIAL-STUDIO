@@ -34,6 +34,8 @@ const TABLES = [
   'publication',
   'publicationTarget',
   'publicationMetric',
+  'notification',
+  'notificationPreference',
   'imageProject',
   'auditLog',
 ];
