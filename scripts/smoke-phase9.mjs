@@ -332,9 +332,13 @@ async function main() {
   ok(
     'Chaque plateforme nomme ce qui bloque',
     readiness.data?.platforms?.every(
-      (entry) => Array.isArray(entry.missingCredentials) && entry.missingCredentials.length > 0,
+      (entry) =>
+        // Deux motifs explicites : des identifiants manquants, ou un transport
+        // réellement absent (TikTok a désormais ses clés, mais pas d'envoi).
+        (Array.isArray(entry.missingCredentials) && entry.missingCredentials.length > 0) ||
+        (entry.canPublish === false && entry.transport === 'NONE' && Boolean(entry.fallback)),
     ),
-    'au moins une plateforme sans identifiants manquants',
+    'une plateforme ne nomme ni identifiant manquant ni transport absent',
   );
 
   // --- RBAC ---

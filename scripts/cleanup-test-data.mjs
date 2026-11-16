@@ -38,6 +38,8 @@ const TABLES = [
   'notificationPreference',
   'comment',
   'task',
+  'creditAccount',
+  'creditTransaction',
   'imageProject',
   'auditLog',
 ];

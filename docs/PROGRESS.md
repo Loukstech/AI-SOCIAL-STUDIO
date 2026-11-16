@@ -308,3 +308,19 @@ Détail : [PHASE12.md](PHASE12.md).
 ### Prochaine étape
 
 Le cahier des charges est couvert jusqu'au §15. Restent les briques qui dépendent de tiers : transport e-mail transactionnel, identifiants des applications OAuth, moteur de rendu ffmpeg, stockage objet R2 et fournisseur de transcription.
+
+---
+
+## Correctif — registre de crédits (§16.2)
+
+**Statut : CORRIGÉ ET DÉPLOYÉ.**
+
+Trois bugs ont été trouvés en revue du travail de la Phase 13, tous confirmés avant correction :
+
+- `CONFIRM` puis `REFUND` sur la même réservation restituait les crédits d'un travail déjà consommé et mettait `reserved` en négatif. La ligne `RESERVE` porte désormais `settledAt`, posé par un `updateMany` conditionnel dans la transaction : les deux règlements s'excluent, y compris en concurrence.
+- La clé d'idempotence était unique globalement. Deux organisations choisissant la même clé partageaient une écriture, et `confirm`/`refund` ne prenaient aucun `organizationId` : un membre d'une organisation pouvait régler la réservation d'une autre. La clé est maintenant unique par compte et le règlement est scopé à l'organisation.
+- Le contrôle de solde était hors transaction : deux réservations parallèles pouvaient passer. Le débit est devenu un `updateMany` conditionnel sur `balance >= amount`. Le quota mensuel est vérifié avant tout débit, et un rejeu concurrent renvoie `replayed: true` plutôt qu'un 500.
+
+Migration `20261117001500_credit_ledger_safety` (16 au total), appliquée après vérification de la production : 0 transaction, 1 compte, aucune clé dupliquée. Les index créés à la main en Phase 13 sont déclarés au schéma pour que le diff Prisma ne propose pas de les supprimer.
+
+Qualité : 412 tests unitaires (6 de régression), 15 vérifications en ligne dédiées au correctif, 12 suites E2E rejouées. `smoke-phase9` a été ajusté : TikTok dispose désormais d'identifiants, donc « chaque plateforme nomme ce qui bloque » accepte aussi un `transport: NONE` avec repli manuel. `cleanup-test-data` couvre maintenant `creditAccount` et `creditTransaction`.
