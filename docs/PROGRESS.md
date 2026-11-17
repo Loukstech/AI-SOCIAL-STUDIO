@@ -410,11 +410,11 @@ Validation en ligne : `pnpm test:storage` **22/22** (upload, URL signée téléc
 
 ## Transport e-mail transactionnel (17 novembre 2026)
 
-**Statut : CODE ET CONFIGURATION EN LIGNE PRÊTS, EN ATTENTE DU DÉPLOIEMENT FINAL.**
+**Statut : CODE ET TRANSPORT ACTIFS EN PRODUCTION.**
 
-- Deux adaptateurs coexistent dans `apps/api/src/notifications/mail.ts` : **SMTP** (Hostinger, retenu) et **Resend** (disponible en secours). `MAIL_TRANSPORT` choisit `none`, `smtp` ou `resend` ; sans transport, le statut `NO_PROVIDER` est conservé — aucun succès simulé.
-- Boîte `noreply@timestradinginter.com` créée via l'API Hostinger sur l'ordre mail `timestradinginter.com`. Paramètres : `smtp.hostinger.com:587`, STARTTLS, authentification. Variables Render configurées : `MAIL_TRANSPORT`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM`.
-- Un e-mail de test réel a été envoyé avec succès depuis `noreply@timestradinginter.com` vers `loukstech@gmail.com` avant le déploiement.
+- Deux adaptateurs coexistent dans `apps/api/src/notifications/mail.ts` : **Resend** (retenu) et **SMTP** (Hostinger, disponible). `MAIL_TRANSPORT` choisit `none`, `smtp` ou `resend` ; sans transport, le statut `NO_PROVIDER` est conservé — aucun succès simulé.
+- La boîte Hostinger `noreply@timestradinginter.com` a bien été créée via l'API, mais Render n'a pas pu joindre `smtp.hostinger.com` en 587 ni en 465 (`Connection timeout`) alors que les deux fonctionnaient localement. Le code SMTP reste disponible mais n'est pas le transport prod.
+- Transport prod : Resend (`MAIL_TRANSPORT=resend`, `RESEND_API_KEY`, `MAIL_FROM=AI Social Studio <onboarding@resend.dev>`). Clé validée par un envoi direct (`200`) avant configuration de Render.
 - Les invitations envoient le lien d'acceptation par e-mail, en best-effort : un échec est journalisé et tracé dans les métadonnées d'audit (`emailStatus`), mais l'invitation reste créée. Les adresses `.test` et l'environnement de test sont volontairement ignorés.
-- Précision sur Resend : le plan gratuit est de **3 000 e-mails/mois et 100/jour**, donc pas illimité. L'adaptateur reste là si Hostinger devient limitant.
-- Qualité : **441 tests unitaires** (3 SMTP + 3 Resend), typecheck vert. Reste à faire : attendre le déploiement Render du commit SMTP, puis envoyer un e-mail via l'API en production.
+- Précision sur Resend : le plan gratuit est de **3 000 e-mails/mois et 100/jour**, donc pas illimité. `onboarding@resend.dev` ne peut écrire qu'à l'adresse du compte ; pour écrire à n'importe qui, il faudra vérifier un domaine dans Resend puis changer `MAIL_FROM`.
+- Qualité : **441 tests unitaires** (3 SMTP + 3 Resend), typecheck vert.
