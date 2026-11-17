@@ -37,6 +37,7 @@ import {
   invitationSchema,
   mediaAssetSchema,
   mediaDuplicateGroupSchema,
+  mediaSignedUrlSchema,
   memberSchema,
   organizationSchema,
   portfolioSchema,
@@ -204,7 +205,8 @@ export class ApiError extends Error {
 
 async function request<T>(path: string, schema: z.ZodType<T>, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
-  if (init.body) headers.set('Content-Type', 'application/json');
+  if (init.body && !(init.body instanceof FormData))
+    headers.set('Content-Type', 'application/json');
   const token = session.token;
   if (token) headers.set('Authorization', `Bearer ${token}`);
   const org = session.organizationId;
@@ -365,6 +367,17 @@ export const api = {
       }),
     versions: (id: string): Promise<MediaAsset[]> =>
       request(`/media/${id}/versions`, z.array(mediaAssetSchema)),
+    /** Upload multipart : le binaire part dans le stockage objet, pas en base. */
+    upload: (file: File, meta: Record<string, string> = {}): Promise<MediaAsset> => {
+      const form = new FormData();
+      form.append('file', file);
+      for (const [key, value] of Object.entries(meta)) {
+        if (value) form.append(key, value);
+      }
+      return request('/media/upload', mediaAssetSchema, { method: 'POST', body: form });
+    },
+    signedUrl: (id: string, expires?: number): Promise<{ url: string; expiresAt: string }> =>
+      request(`/media/${id}/url${expires ? `?expires=${expires}` : ''}`, mediaSignedUrlSchema),
     remove: (id: string): Promise<unknown> =>
       request(`/media/${id}`, z.unknown(), { method: 'DELETE' }),
   },

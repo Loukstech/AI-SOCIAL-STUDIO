@@ -45,6 +45,17 @@ const envSchema = z
     PUBLISH_TICK_SECONDS: z.coerce.number().int().min(10).max(3600).default(60),
     // Transport de publication. Sans adaptateur OAuth natif, un webhook permet
     // de confier l'envoi à un scénario externe (n8n, Make…). Absent = non configuré.
+    // Stockage objet S3-compatible (Cloudflare R2). Absent = les routes qui
+    // manipulent des fichiers répondent 503, jamais une URL factice (§12).
+    R2_ENDPOINT: optionalUrl.refine((v) => v === undefined || /^https?:\/\//.test(v), {
+      message: 'R2_ENDPOINT doit être une URL http(s)',
+    }),
+    R2_BUCKET_NAME: z.string().trim().min(1).optional(),
+    R2_ACCESS_KEY_ID: z.string().trim().min(1).optional(),
+    R2_SECRET_ACCESS_KEY: z.string().trim().min(1).optional(),
+    R2_REGION: z.string().trim().min(1).default('auto'),
+    R2_SIGNED_TTL_SECONDS: z.coerce.number().int().min(30).max(3600).default(900),
+    R2_MAX_UPLOAD_MB: z.coerce.number().int().min(1).max(25).default(25),
     PUBLISH_WEBHOOK_URL: optionalUrl.refine((v) => v === undefined || /^https?:\/\//.test(v), {
       message: 'PUBLISH_WEBHOOK_URL doit être une URL http(s)',
     }),

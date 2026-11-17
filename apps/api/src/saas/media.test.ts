@@ -1,5 +1,7 @@
+import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import type { Db } from '../common/validation.js';
+import type { ObjectStorageService } from '../storage/object-storage.service.js';
 import { MediaController } from './media.controller.js';
 
 type Row = {
@@ -11,6 +13,7 @@ type Row = {
   mimeType: string | null;
   sizeBytes: number | null;
   sourceUrl: string | null;
+  storageKey: string | null;
   folder: string | null;
   tags: string[];
   favorite: boolean;
@@ -31,6 +34,7 @@ function row(overrides: Partial<Row> = {}): Row {
     mimeType: null,
     sizeBytes: null,
     sourceUrl: null,
+    storageKey: null,
     folder: null,
     tags: [],
     favorite: false,
@@ -77,11 +81,34 @@ function controllerWith(rows: Row[]) {
     },
     brand: { findFirst: async () => null },
   };
-  const controller = new MediaController({ client } as unknown as Db);
+  const calls: { op: string; key?: string; content?: Buffer; expires?: number }[] = [];
+  const storage = {
+    configured: true,
+    objectKey: (org: string, filename: string, id: string) =>
+      `org/${org}/${id}/${filename.replace(/[^\w.-]/g, '_')}`,
+    checksum: (content: Buffer) => createHash('sha256').update(content).digest('hex'),
+    put: async (key: string, content: Buffer, _type: string) => {
+      calls.push({ op: 'put', key, content });
+    },
+    signedGetUrl: async (key: string, expires?: number) => {
+      calls.push({ op: 'url', key, expires });
+      return {
+        url: 'https://example.com/signed',
+        expiresAt: '2026-11-17T10:00:00.000Z',
+      };
+    },
+    remove: async (key: string) => {
+      calls.push({ op: 'delete', key });
+    },
+    assertOrganizationKey: (org: string, key: string) => {
+      if (!key.startsWith(`org/${org}/`)) throw new Error('Clé étrangère');
+    },
+  } as unknown as ObjectStorageService;
+  const controller = new MediaController({ client } as unknown as Db, storage);
   const auth = {
     auth: { userId: 'user-1', organizationId: 'org-1' },
   } as never;
-  return { controller, auth, where: () => lastWhere, data: () => lastData };
+  return { controller, auth, storage, calls, where: () => lastWhere, data: () => lastData };
 }
 
 describe('médiathèque (§12)', () => {
@@ -162,5 +189,74 @@ describe('médiathèque (§12)', () => {
     const versions = await env.controller.versions(env.auth, 'media-1');
     expect(versions).toHaveLength(1);
     expect(env.where()).toMatchObject({ organizationId: 'org-1', versionOfId: 'media-1' });
+  });
+
+  it('dépose le binaire dans le stockage et n’enregistre que sa clé', async () => {
+    const env = controllerWith([]);
+    const content = Buffer.from('contenu binaire');
+    const asset = await env.controller.upload(
+      env.auth,
+      {
+        originalname: 'Mon visuel.png',
+        mimetype: 'image/png',
+        size: content.length,
+        buffer: content,
+      } as Express.Multer.File,
+      { folder: 'Campagnes', tags: ' été, été ,printemps ' },
+    );
+
+    const put = env.calls.find((call) => call.op === 'put');
+    expect(put?.key).toMatch(/^org\/org-1\/[0-9a-f-]{36}\/Mon_visuel\.png$/);
+    expect(put?.content).toEqual(content);
+    expect(env.data()).toMatchObject({
+      storageKey: put?.key,
+      mimeType: 'image/png',
+      sizeBytes: content.length,
+      checksum: createHash('sha256').update(content).digest('hex'),
+      kind: 'IMAGE',
+      tags: ['été', 'printemps'],
+    });
+    expect(asset.hasFile).toBe(true);
+    expect(asset.sourceUrl).toBeNull();
+  });
+
+  it('refuse l’upload sans fichier ni stockage configuré', async () => {
+    const env = controllerWith([]);
+    await expect(env.controller.upload(env.auth, undefined, {})).rejects.toThrow('Fichier requis');
+    Object.defineProperty(env.storage, 'configured', { value: false });
+    await expect(
+      env.controller.upload(
+        env.auth,
+        { buffer: Buffer.from('x'), size: 1 } as Express.Multer.File,
+        {},
+      ),
+    ).rejects.toThrow('Stockage objet non configuré');
+  });
+
+  it('ne délivre une URL signée que pour un média du périmètre', async () => {
+    const env = controllerWith([row({ storageKey: 'org/org-1/fichier.png' })]);
+    const signed = await env.controller.signedUrl(env.auth, 'media-1', '60');
+    expect(signed.url).toBe('https://example.com/signed');
+    expect(env.calls).toMatchObject([{ op: 'url', expires: 60 }]);
+  });
+
+  it('refuse une durée de signature excessive', async () => {
+    const env = controllerWith([row({ storageKey: 'org/org-1/fichier.png' })]);
+    await expect(env.controller.signedUrl(env.auth, 'media-1', '99999')).rejects.toThrow(
+      'compris entre 30 et 3600',
+    );
+  });
+
+  it('refuse une URL signée sur un média sans fichier', async () => {
+    const env = controllerWith([row()]);
+    await expect(env.controller.signedUrl(env.auth, 'media-1')).rejects.toThrow(
+      'pas de fichier stocké',
+    );
+  });
+
+  it('supprime l’objet avec le média', async () => {
+    const env = controllerWith([row({ storageKey: 'org/org-1/fichier.png' })]);
+    await env.controller.remove(env.auth, 'media-1');
+    expect(env.calls).toMatchObject([{ op: 'delete', key: 'org/org-1/fichier.png' }]);
   });
 });

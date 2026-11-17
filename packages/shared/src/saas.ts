@@ -149,6 +149,24 @@ export const createMediaSchema = z.object({
 });
 export type CreateMediaInput = z.infer<typeof createMediaSchema>;
 
+/** Champs accepts lors d'un upload multipart (le binaire n'est jamais en base). */
+export const mediaUploadSchema = z.object({
+  name: z.string().trim().min(1).max(200).optional(),
+  kind: mediaKindSchema.optional(),
+  folder: z.string().trim().max(120).optional(),
+  tags: z.string().trim().max(500).optional(),
+  rights: z.string().trim().max(500).optional(),
+  brandId: z.string().optional(),
+  versionOfId: z.string().optional(),
+});
+export type MediaUploadInput = z.infer<typeof mediaUploadSchema>;
+
+export const mediaSignedUrlSchema = z.object({
+  url: z.string().url(),
+  expiresAt: z.string(),
+});
+export type MediaSignedUrl = z.infer<typeof mediaSignedUrlSchema>;
+
 export const updateMediaSchema = z
   .object({
     name: z.string().trim().min(1).max(200).optional(),
@@ -176,6 +194,8 @@ export const mediaAssetSchema = z.object({
   mimeType: z.string().nullable(),
   sizeBytes: z.number().nullable(),
   sourceUrl: z.string().nullable(),
+  /** Vrai quand le binaire est dans le stockage objet (URL signée disponible). */
+  hasFile: z.boolean(),
   folder: z.string().nullable(),
   tags: z.array(z.string()),
   favorite: z.boolean(),

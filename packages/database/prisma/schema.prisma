@@ -238,6 +238,8 @@ model MediaAsset {
   mimeType       String?
   sizeBytes      Int?
   sourceUrl      String?
+  /** Clé de l'objet dans le stockage S3-compatible ; NULL si aucun fichier. */
+  storageKey     String?       @unique
   /** Dossier logique ; `null` racine. Aucun fichier n'est stocké en BLOB. */
   folder         String?
   tags           String[]       @default([])

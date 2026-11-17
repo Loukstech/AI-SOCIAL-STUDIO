@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   BadRequestException,
   Body,
@@ -6,34 +7,50 @@ import {
   Get,
   HttpCode,
   Inject,
+  Logger,
   NotFoundException,
   Param,
   Patch,
   Post,
   Query,
   Req,
+  ServiceUnavailableException,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 import {
   createMediaSchema,
   mediaAssetSchema,
   mediaDuplicateGroupSchema,
   mediaQuerySchema,
+  mediaSignedUrlSchema,
+  mediaUploadSchema,
   updateMediaSchema,
   type CreateMediaInput,
   type MediaAsset,
   type MediaDuplicateGroup,
   type MediaQuery,
+  type MediaSignedUrl,
+  type MediaUploadInput,
   type UpdateMediaInput,
 } from '@ass/shared';
 import { Db, ZodPipe } from '../common/validation.js';
 import { AuthGuard, MinRole } from '../auth/auth.guard.js';
 import type { AuthedRequest } from '../auth/auth.types.js';
+import { MAX_UPLOAD_BYTES, ObjectStorageService } from '../storage/object-storage.service.js';
 
 @Controller('media')
 @UseGuards(AuthGuard)
 export class MediaController {
-  constructor(@Inject(Db) private readonly db: Db) {}
+  private readonly logger = new Logger(MediaController.name);
+
+  constructor(
+    @Inject(Db) private readonly db: Db,
+    @Inject(ObjectStorageService) private readonly storage: ObjectStorageService,
+  ) {}
 
   /** Recherche et filtres exécutés en base, jamais filtrés après coup à l'écran. */
   @Get()
@@ -130,6 +147,96 @@ export class MediaController {
     return toMedia(asset);
   }
 
+  /**
+   * Dépose le binaire dans le stockage objet puis enregistre sa référence.
+   * Aucun octet du fichier n'est écrit en base.
+   */
+  @Post('upload')
+  @MinRole('EDITOR')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: memoryStorage(),
+      limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 },
+    }),
+  )
+  async upload(
+    @Req() request: AuthedRequest,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Body(new ZodPipe(mediaUploadSchema.default({}))) body: MediaUploadInput,
+  ): Promise<MediaAsset> {
+    if (!file) throw new BadRequestException('Fichier requis (champ « file »)');
+    if (!this.storage.configured) {
+      throw new ServiceUnavailableException('Stockage objet non configuré');
+    }
+    if (file.size > MAX_UPLOAD_BYTES || file.size === 0) {
+      throw new BadRequestException('Fichier vide ou trop volumineux (25 Mo maximum)');
+    }
+
+    const organizationId = this.org(request);
+    if (body.brandId) await this.assertBrand(organizationId, body.brandId);
+    if (body.versionOfId) await this.assertVersion(organizationId, body.versionOfId);
+
+    const id = randomUUID();
+    const key = this.storage.objectKey(organizationId, file.originalname || 'fichier', id);
+    const checksum = this.storage.checksum(file.buffer);
+    const mimeType = file.mimetype || 'application/octet-stream';
+    await this.storage.put(key, file.buffer, mimeType);
+
+    try {
+      const asset = await this.db.client.mediaAsset.create({
+        data: {
+          id,
+          name: body.name || file.originalname || 'Média importé',
+          kind: body.kind ?? inferKind(mimeType),
+          organizationId,
+          mimeType,
+          sizeBytes: file.size,
+          storageKey: key,
+          checksum,
+          ...(body.brandId ? { brandId: body.brandId } : {}),
+          ...(body.folder ? { folder: body.folder } : {}),
+          ...(body.tags ? { tags: splitTags(body.tags) } : {}),
+          ...(body.rights ? { rights: body.rights } : {}),
+          ...(body.versionOfId ? { versionOfId: body.versionOfId } : {}),
+        },
+      });
+      return toMedia(asset);
+    } catch (cause) {
+      // Écriture en base refusée : on ne laisse pas d'objet orphelin.
+      try {
+        await this.storage.remove(key);
+      } catch (cleanupError) {
+        this.logger.warn(`Nettoyage objet impossible après échec DB : ${String(cleanupError)}`);
+      }
+      throw cause;
+    }
+  }
+
+  /** URL signée de lecture, valable au maximum une heure. */
+  @Get(':id/url')
+  @MinRole('VIEWER')
+  async signedUrl(
+    @Req() request: AuthedRequest,
+    @Param('id') id: string,
+    @Query('expires') expires?: string,
+  ): Promise<MediaSignedUrl> {
+    const organizationId = this.org(request);
+    const asset = await this.find(organizationId, id);
+    if (!asset.storageKey) {
+      throw new BadRequestException('Ce média ne possède pas de fichier stocké');
+    }
+    this.storage.assertOrganizationKey(organizationId, asset.storageKey);
+    let seconds: number | undefined;
+    if (expires !== undefined) {
+      seconds = Number(expires);
+      if (!Number.isInteger(seconds) || seconds < 30 || seconds > 3600) {
+        throw new BadRequestException('expires doit être compris entre 30 et 3600 secondes');
+      }
+    }
+    const signed = await this.storage.signedGetUrl(asset.storageKey, seconds);
+    return mediaSignedUrlSchema.parse(signed);
+  }
+
   /** Métadonnées, dossier, tags, favori et lien de version. */
   @Patch(':id')
   @MinRole('EDITOR')
@@ -189,6 +296,14 @@ export class MediaController {
       where: { id: asset.id },
       data: { deletedAt: new Date() },
     });
+    if (asset.storageKey && this.storage.configured) {
+      try {
+        await this.storage.remove(asset.storageKey);
+      } catch (cause) {
+        // Le média est déjà masqué : un objet restant n'est plus accessible.
+        this.logger.warn(`Objet non supprimé pour ${asset.id} : ${String(cause)}`);
+      }
+    }
   }
 
   private org(request: AuthedRequest): string {
@@ -230,6 +345,7 @@ function toMedia(row: {
   mimeType: string | null;
   sizeBytes: number | null;
   sourceUrl: string | null;
+  storageKey: string | null;
   folder: string | null;
   tags: string[];
   favorite: boolean;
@@ -247,6 +363,7 @@ function toMedia(row: {
     mimeType: row.mimeType,
     sizeBytes: row.sizeBytes,
     sourceUrl: row.sourceUrl,
+    hasFile: Boolean(row.storageKey),
     folder: row.folder,
     tags: row.tags ?? [],
     favorite: row.favorite,
@@ -255,4 +372,24 @@ function toMedia(row: {
     versionOfId: row.versionOfId,
     createdAt: row.createdAt.toISOString(),
   };
+}
+
+function inferKind(mimeType: string): 'IMAGE' | 'VIDEO' | 'AUDIO' | 'DOCUMENT' {
+  if (mimeType.startsWith('image/')) return 'IMAGE';
+  if (mimeType.startsWith('video/')) return 'VIDEO';
+  if (mimeType.startsWith('audio/')) return 'AUDIO';
+  return 'DOCUMENT';
+}
+
+/** Tags envoyés en multipart sous forme de chaîne séparée par des virgules. */
+function splitTags(raw: string): string[] {
+  return [
+    ...new Set(
+      raw
+        .split(',')
+        .map((tag) => tag.trim())
+        .filter(Boolean)
+        .slice(0, 20),
+    ),
+  ];
 }

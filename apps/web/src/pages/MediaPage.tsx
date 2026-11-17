@@ -29,7 +29,11 @@ export function MediaPage() {
   const [newTags, setNewTags] = useState('');
   const [checksum, setChecksum] = useState('');
   const [rights, setRights] = useState('');
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadKind, setUploadKind] = useState<MediaKind>('IMAGE');
+  const [uploadFolder, setUploadFolder] = useState('');
   const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [actionError, setActionError] = useState('');
 
   const fetcher = useCallback(async () => {
@@ -77,6 +81,35 @@ export function MediaPage() {
       setActionError(cause instanceof Error ? cause.message : 'Ajout impossible');
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function uploadFileToStorage(event: FormEvent) {
+    event.preventDefault();
+    if (!uploadFile) return;
+    setActionError('');
+    setUploading(true);
+    try {
+      await api.media.upload(uploadFile, {
+        kind: uploadKind,
+        ...(uploadFolder ? { folder: uploadFolder } : {}),
+      });
+      setUploadFile(null);
+      setUploadFolder('');
+      reload();
+    } catch (cause) {
+      setActionError(cause instanceof Error ? cause.message : 'Envoi impossible');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function openFile(asset: MediaAsset) {
+    try {
+      const link = await api.media.signedUrl(asset.id);
+      window.open(link.url, '_blank', 'noopener,noreferrer');
+    } catch (cause) {
+      setActionError(cause instanceof Error ? cause.message : 'Lien impossible');
     }
   }
 
@@ -171,6 +204,49 @@ export function MediaPage() {
       </Card>
 
       <Card>
+        <h2 className="mb-4 font-medium">Envoyer un fichier</h2>
+        <p className="mb-4 text-sm text-text-muted">
+          Le fichier est stocké dans un espace privé. L&apos;accès se fait par une URL signée,
+          valable 15 minutes.
+        </p>
+        <form onSubmit={uploadFileToStorage} className="grid gap-4 sm:grid-cols-4">
+          <label className="block space-y-1.5">
+            <span className="block text-sm font-medium">Fichier (25 Mo max)</span>
+            <input
+              type="file"
+              onChange={(e) => setUploadFile(e.target.files?.[0] ?? null)}
+              className="w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-accent file:px-3 file:py-2 file:text-sm file:text-white"
+            />
+          </label>
+          <label className="block space-y-1.5">
+            <span className="block text-sm font-medium">Type</span>
+            <select
+              value={uploadKind}
+              onChange={(e) => setUploadKind(e.target.value as MediaKind)}
+              className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-accent"
+            >
+              {kinds.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Field
+            label="Dossier"
+            value={uploadFolder}
+            onChange={(e) => setUploadFolder(e.target.value)}
+            placeholder="Campagnes/2026"
+          />
+          <div className="flex items-end">
+            <Button type="submit" disabled={uploading || !uploadFile} className="w-full">
+              {uploading ? 'Envoi…' : 'Envoyer'}
+            </Button>
+          </div>
+        </form>
+      </Card>
+
+      <Card>
         <h2 className="mb-4 font-medium">Recherche et filtres</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
           <Field
@@ -248,6 +324,11 @@ export function MediaPage() {
                     <td className="py-2 text-xs text-text-muted">{formatDate(asset.createdAt)}</td>
                     <td className="py-2 text-right">
                       <div className="flex justify-end gap-2">
+                        {asset.hasFile && (
+                          <Button variant="ghost" onClick={() => void openFile(asset)}>
+                            Ouvrir
+                          </Button>
+                        )}
                         <Button
                           variant={asset.favorite ? 'primary' : 'ghost'}
                           onClick={() => void toggleFavorite(asset)}
