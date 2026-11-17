@@ -408,12 +408,13 @@ Validation en ligne : `pnpm test:storage` **22/22** (upload, URL signée téléc
 
 ---
 
-## Transport e-mail Resend (17 novembre 2026)
+## Transport e-mail transactionnel (17 novembre 2026)
 
-**Statut : CODE PRÊT, EN ATTENTE DE CLÉ API.**
+**Statut : CODE ET CONFIGURATION EN LIGNE PRÊTS, EN ATTENTE DU DÉPLOIEMENT FINAL.**
 
-- `createResendTransport()` dans `apps/api/src/notifications/mail.ts` appelle `POST https://api.resend.com/emails` avec `Authorization: Bearer …`. Sans `RESEND_API_KEY`, le transport inerte reste en place et le statut `NO_PROVIDER` est conservé — aucun succès simulé.
-- `SaasModule` injecte le transport selon l'environnement. `MAIL_FROM` vaut par défaut `AI Social Studio <onboarding@resend.dev>` ; pour écrire à n'importe qui, il faudra vérifier un domaine dans Resend puis renseigner cette variable.
-- Les invitations envoient désormais le lien d'acceptation par e-mail, en best-effort : un échec est journalisé et tracé dans les métadonnées d'audit (`emailStatus`), mais l'invitation reste créée. Les adresses `.test` et l'environnement de test sont volontairement ignorés.
-- Qualité : **438 tests unitaires** (3 nouveaux sur Resend), typecheck vert. Quota gratuit Resend : 3 000 e-mails/mois, 100/jour.
-- Reste à faire : créer la clé Resend, renseigner `RESEND_API_KEY` sur Render, vérifier le domaine d'expédition, redéployer puis envoyer un e-mail de test réel.
+- Deux adaptateurs coexistent dans `apps/api/src/notifications/mail.ts` : **SMTP** (Hostinger, retenu) et **Resend** (disponible en secours). `MAIL_TRANSPORT` choisit `none`, `smtp` ou `resend` ; sans transport, le statut `NO_PROVIDER` est conservé — aucun succès simulé.
+- Boîte `noreply@timestradinginter.com` créée via l'API Hostinger sur l'ordre mail `timestradinginter.com`. Paramètres : `smtp.hostinger.com:587`, STARTTLS, authentification. Variables Render configurées : `MAIL_TRANSPORT`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_FROM`.
+- Un e-mail de test réel a été envoyé avec succès depuis `noreply@timestradinginter.com` vers `loukstech@gmail.com` avant le déploiement.
+- Les invitations envoient le lien d'acceptation par e-mail, en best-effort : un échec est journalisé et tracé dans les métadonnées d'audit (`emailStatus`), mais l'invitation reste créée. Les adresses `.test` et l'environnement de test sont volontairement ignorés.
+- Précision sur Resend : le plan gratuit est de **3 000 e-mails/mois et 100/jour**, donc pas illimité. L'adaptateur reste là si Hostinger devient limitant.
+- Qualité : **441 tests unitaires** (3 SMTP + 3 Resend), typecheck vert. Reste à faire : attendre le déploiement Render du commit SMTP, puis envoyer un e-mail via l'API en production.

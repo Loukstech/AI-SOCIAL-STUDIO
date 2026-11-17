@@ -37,7 +37,7 @@ AUTH_SECRET=<openssl rand -base64 48>
 
 `AUTH_SECRET` signe les jetons de session (≥ 16 caractères) et est **obligatoire en production**.
 
-En production ces valeurs sont injectées par Render, pas par un fichier. Le jeu complet attendu sur Render est : `NODE_ENV`, `CORS_ORIGINS`, `DATABASE_URL`, `REDIS_URL`, `AUTH_SECRET`, `WEB_APP_URL` (base des liens d'invitation, `https://www.socialstudio.timestradinginter.com`) et `API_PUBLIC_URL` (base des URLs signées de fichiers, `https://ai-social-studio-api.onrender.com`). `MEDIA_STORAGE_DRIVER` vaut `database` par défaut : aucun réglage supplémentaire n'est nécessaire. `RESEND_API_KEY` active l'envoi d'e-mails ; `MAIL_FROM` est optionnel (voir §Notifications). `INVITATION_TTL_HOURS` est optionnel (168 h par défaut).
+En production ces valeurs sont injectées par Render, pas par un fichier. Le jeu complet attendu sur Render est : `NODE_ENV`, `CORS_ORIGINS`, `DATABASE_URL`, `REDIS_URL`, `AUTH_SECRET`, `WEB_APP_URL` (base des liens d'invitation, `https://www.socialstudio.timestradinginter.com`) et `API_PUBLIC_URL` (base des URLs signées de fichiers, `https://ai-social-studio-api.onrender.com`). `MEDIA_STORAGE_DRIVER` vaut `database` par défaut : aucun réglage supplémentaire n'est nécessaire. `MAIL_TRANSPORT=smtp` active l'envoi via Hostinger ; voir §Notifications pour les variables `SMTP_*` et `MAIL_FROM`. `INVITATION_TTL_HOURS` est optionnel (168 h par défaut).
 
 `AI_PROVIDER` vaut `mock` par défaut : la transcription de démonstration fonctionne sans variable supplémentaire. `OPENAI_API_KEY` n'est utile qu'une fois l'adaptateur réel écrit (Phase 4).
 
@@ -183,9 +183,10 @@ Le projet Cloudflare Pages est en **upload direct** (`ad_hoc`) : aucun dépôt G
 
 ### Notifications
 
-- Transport **Resend** via `POST https://api.resend.com/emails`, implémenté dans `apps/api/src/notifications/mail.ts`. Sans `RESEND_API_KEY`, le transport reste inerte et enregistre `NO_PROVIDER` : aucun succès n'est simulé.
-- Variables : `RESEND_API_KEY` (clé « Sending access ») et `MAIL_FROM` (expéditeur vérifié, par défaut `AI Social Studio <onboarding@resend.dev>`). Le quota gratuit actuel est de 3 000 e-mails/mois et 100/jour.
-- Le plan gratuit `onboarding@resend.dev` ne peut envoyer qu'à l'adresse du compte Resend. Pour inviter n'importe qui, vérifier un domaine dans Resend puis poser `MAIL_FROM=AI Social Studio <noreply@votre-domaine>`.
+- Transport **SMTP Hostinger** activé : `MAIL_TRANSPORT=smtp`, `SMTP_HOST=smtp.hostinger.com`, `SMTP_PORT=587`, `SMTP_SECURE=false`, `SMTP_USER=noreply@timestradinginter.com`, `SMTP_PASSWORD` (secret Render) et `MAIL_FROM=AI Social Studio <noreply@timestradinginter.com>`.
+- La boîte `noreply@timestradinginter.com` a été créée via l'API Hostinger sur l'ordre mail `timestradinginter.com`. Un e-mail de test a été envoyé avec succès via SMTP avant configuration de Render.
+- Un adaptateur **Resend** reste disponible (`MAIL_TRANSPORT=resend` + `RESEND_API_KEY`) si le quota Hostinger devient limitant. Le quota gratuit Resend est de 3 000 e-mails/mois et 100/jour — il n'est donc pas illimité.
+- Sans transport configuré (`MAIL_TRANSPORT=none`), le transport reste inerte et enregistre `NO_PROVIDER` : aucun succès n'est simulé.
 - Les invitations envoient aussi un e-mail best-effort avec le lien d'acceptation ; une panne du transport est journalisée mais ne bloque pas la création de l'invitation.
 - Les notifications sont écrites dans la même transaction logique que la transition qui les déclenche, mais leur échec est journalisé sans être propagé : une publication réussie n'est jamais annulée par un avertissement manquant.
 - La pastille de compteur interroge l'API toutes les 45 s : aucun WebSocket, aucun serveur supplémentaire, aucune consommation d'heures Render.

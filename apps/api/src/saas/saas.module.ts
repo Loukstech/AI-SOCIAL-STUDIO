@@ -33,7 +33,12 @@ import { ContentController, ContentGenerationController } from '../content/conte
 import { ContentService } from '../content/content.service.js';
 import { ImageProjectsController } from '../image/image.controller.js';
 import { ImageService } from '../image/image.service.js';
-import { createResendTransport, MAIL_TRANSPORT } from '../notifications/mail.js';
+import {
+  createResendTransport,
+  createSmtpTransport,
+  MAIL_TRANSPORT,
+  noopMailTransport,
+} from '../notifications/mail.js';
 import { NotificationsController } from '../notifications/notifications.controller.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { CalendarController } from '../publishing/calendar.controller.js';
@@ -119,8 +124,22 @@ import { VideoProjectsController } from '../video/video-projects.controller.js';
     PortfolioService,
     {
       provide: MAIL_TRANSPORT,
-      useFactory: (env: Env) =>
-        createResendTransport({ apiKey: env.RESEND_API_KEY, from: env.MAIL_FROM }),
+      useFactory: (env: Env) => {
+        if (env.MAIL_TRANSPORT === 'smtp') {
+          return createSmtpTransport({
+            host: env.SMTP_HOST,
+            port: env.SMTP_PORT,
+            secure: env.SMTP_SECURE,
+            user: env.SMTP_USER,
+            password: env.SMTP_PASSWORD,
+            from: env.MAIL_FROM,
+          });
+        }
+        if (env.MAIL_TRANSPORT === 'resend') {
+          return createResendTransport({ apiKey: env.RESEND_API_KEY, from: env.MAIL_FROM });
+        }
+        return noopMailTransport;
+      },
       inject: [ENV],
     },
   ],

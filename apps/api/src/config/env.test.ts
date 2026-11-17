@@ -11,6 +11,9 @@ describe('parseEnv', () => {
     expect(env.REDIS_URL).toBeUndefined();
     expect(env.RESEND_API_KEY).toBeUndefined();
     expect(env.MAIL_FROM).toBe('AI Social Studio <onboarding@resend.dev>');
+    expect(env.MAIL_TRANSPORT).toBe('none');
+    expect(env.SMTP_PORT).toBe(587);
+    expect(env.SMTP_SECURE).toBe(false);
   });
 
   it('traite une variable vide comme absente', () => {

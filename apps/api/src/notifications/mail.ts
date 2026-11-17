@@ -13,6 +13,7 @@
  * simulé pour vérifier le chemin `SENT` sans jamais prétendre qu'il existe en
  * production.
  */
+import nodemailer from 'nodemailer';
 
 export interface MailMessage {
   to: string;
@@ -101,6 +102,58 @@ export function createResendTransport(config: { apiKey?: string; from?: string }
           ok: false,
           code: 'TRANSPORT_ERROR',
           message: `Transport e-mail indisponible : ${
+            cause instanceof Error ? cause.message : 'erreur inconnue'
+          }`,
+        };
+      }
+    },
+    describe() {
+      return { available: true, reason: null };
+    },
+  };
+}
+
+/**
+ * Transport SMTP générique (Hostinger, ou tout fournisseur avec SMTP).
+ * `secure: true` correspond au port 465 ; 587 avec STARTTLS reste `false`.
+ */
+export function createSmtpTransport(config: {
+  host?: string;
+  port: number;
+  secure: boolean;
+  user?: string;
+  password?: string;
+  from?: string;
+}): MailTransport {
+  if (!config.host || !config.user || !config.password) return noopMailTransport;
+
+  const from = config.from || config.user;
+  const transporter = nodemailer.createTransport({
+    host: config.host,
+    port: config.port,
+    secure: config.secure,
+    auth: { user: config.user, pass: config.password },
+    connectionTimeout: 10_000,
+    greetingTimeout: 10_000,
+    socketTimeout: 10_000,
+  });
+
+  return {
+    kind: 'SMTP',
+    async send(message: MailMessage): Promise<MailResult> {
+      try {
+        await transporter.sendMail({
+          from,
+          to: message.to,
+          subject: message.subject,
+          text: message.text,
+        });
+        return { ok: true };
+      } catch (cause) {
+        return {
+          ok: false,
+          code: 'TRANSPORT_ERROR',
+          message: `SMTP indisponible : ${
             cause instanceof Error ? cause.message : 'erreur inconnue'
           }`,
         };
