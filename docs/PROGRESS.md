@@ -324,3 +324,26 @@ Trois bugs ont été trouvés en revue du travail de la Phase 13, tous confirmé
 Migration `20261117001500_credit_ledger_safety` (16 au total), appliquée après vérification de la production : 0 transaction, 1 compte, aucune clé dupliquée. Les index créés à la main en Phase 13 sont déclarés au schéma pour que le diff Prisma ne propose pas de les supprimer.
 
 Qualité : 412 tests unitaires (6 de régression), 15 vérifications en ligne dédiées au correctif, 12 suites E2E rejouées. `smoke-phase9` a été ajusté : TikTok dispose désormais d'identifiants, donc « chaque plateforme nomme ce qui bloque » accepte aussi un `transport: NONE` avec repli manuel. `cleanup-test-data` couvre maintenant `creditAccount` et `creditTransaction`.
+
+### Prochaine étape
+
+Suite E2E dédiée à la Phase 13 et mise à jour du worktree d'origine.
+
+---
+
+## Couverture E2E — Phase 13 (17 novembre 2026)
+
+**Statut : TERMINÉE.**
+
+- `scripts/smoke-phase13.mjs` (`pnpm test:phase13`) comble le trou de couverture sur l'administration (§17), les crédits (§16.2) et le rendu vidéo (§22). Il faut fournir `DATABASE_URL` (`node --env-file=.env scripts/smoke-phase13.mjs`) : le script élève **un compte jetable** en super-admin, puis le rétrograde dans un `finally`. Aucun compte permanent n'est touché.
+- Administration : les routes sont fermées avant élévation (403), puis le tableau de bord, les offres, les utilisateurs, les organisations et le journal sont vérifiés. Un changement de plan met à jour le compte de crédits cible ; une désactivation coupe la session et la réactivation la rend. Chaque action administrative est journalisée avec son auteur. Un plan inconnu et une fenêtre de journal excessive sont refusés.
+- Crédits : octroi réservé au super-admin, rejeu d'octroi sans double crédit, réservation → confirmation → remboursement refusé (le bug historique), remboursement d'une réservation non consommée, confirmation après remboursement refusée, clé d'idempotence acceptée dans un autre compte mais règlement inter-organisations renvoyé en 404, quota et solde refusés avec un motif, registre contenant `GRANT` / `RESERVE` / `CONFIRM` / `REFUND`.
+- Rendu vidéo : sans fichier local, l'API refuse explicitement (aucun téléchargement simulé, aucun rendu inventé) ; un clip inversé, un lecteur ou une autre organisation sont refusés avant `ffmpeg`. Quand `SMOKE13_VIDEO_SOURCE` désigne un fichier visible par l'API, un vrai rendu `local-ffmpeg` est exigé.
+- Qualité : **83 vérifications réussies en production**, **86 en local** avec un vrai rendu ffmpeg sur une source vidéo générée pour l'occasion. Le worktree de `Documents/PROJETS/AI-SOCIAL-STUDIO` a été avancé de `8c763b3` à `1548bac` en fast-forward (27 commits), sans écraser de travail local. Base nettoyée à 0 résidu de test.
+- Aucun code applicatif n'a changé : ni l'API Render ni le frontend Cloudflare n'ont besoin d'être redéployés.
+
+### Limites consignées, pas des régressions
+
+- `/credits/grant` crédite uniquement l'organisation du super-admin appelant. Octroyer à un client demande une route dédiée ou un appel depuis l'organisation cible ; le test fixe ce comportement au lieu de le contourner.
+- `sourcePath` du rendu accepte encore un chemin absolu sur la machine de l'API. À confiner à un dossier d'uploads avant d'exposer le rendu à des utilisateurs non fiables.
+- Les intégrations tierces restent honnêtement indisponibles tant que les identifiants OAuth, le transport e-mail, le stockage objet et le fournisseur de transcription ne sont pas branchés.
