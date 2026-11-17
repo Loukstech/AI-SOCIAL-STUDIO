@@ -5,10 +5,106 @@ interface Props {
   onAuthenticated: () => void;
 }
 
+interface PasswordFieldProps {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  autoComplete: string;
+  minLength: number;
+  visible: boolean;
+  onToggleVisibility: () => void;
+  hint?: string;
+}
+
+function EyeIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-[18px] w-[18px]"
+      aria-hidden="true"
+    >
+      <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function EyeOffIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-[18px] w-[18px]"
+      aria-hidden="true"
+    >
+      <path d="M3 3l18 18" />
+      <path d="M10.6 6.1A9.8 9.8 0 0 1 12 6c6 0 9.5 6 9.5 6a17 17 0 0 1-2.4 3.1M6.2 7.5C3.9 9 2.5 12 2.5 12S6 18.5 12 18.5c1.2 0 2.3-.2 3.3-.6" />
+      <path d="M9.9 9.9a3 3 0 0 0 4.2 4.2" />
+    </svg>
+  );
+}
+
+function PasswordField({
+  id,
+  label,
+  value,
+  onChange,
+  autoComplete,
+  minLength,
+  visible,
+  onToggleVisibility,
+  hint,
+}: PasswordFieldProps) {
+  const action = visible ? 'Masquer' : 'Afficher';
+
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={id} className="block text-sm font-medium">
+        {label}
+      </label>
+      <div className="relative">
+        <input
+          id={id}
+          required
+          type={visible ? 'text' : 'password'}
+          minLength={minLength}
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          autoComplete={autoComplete}
+          className="w-full rounded-lg border border-border bg-bg px-3 py-2 pr-11 text-sm outline-none focus:border-accent"
+        />
+        <button
+          type="button"
+          onClick={onToggleVisibility}
+          aria-label={`${action} ${label.toLowerCase()}`}
+          title={`${action} ${label.toLowerCase()}`}
+          className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-lg text-text-muted transition-colors hover:text-text focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        >
+          {visible ? <EyeOffIcon /> : <EyeIcon />}
+        </button>
+      </div>
+      {hint && <span className="block text-xs text-text-muted">{hint}</span>}
+    </div>
+  );
+}
+
 export function AuthPage({ onAuthenticated }: Props) {
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordConfirmation, setPasswordConfirmation] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showPasswordConfirmation, setShowPasswordConfirmation] = useState(false);
   const [name, setName] = useState('');
   const [organizationName, setOrganizationName] = useState('');
   const [error, setError] = useState('');
@@ -17,6 +113,12 @@ export function AuthPage({ onAuthenticated }: Props) {
   async function submit(event: FormEvent) {
     event.preventDefault();
     setError('');
+
+    if (mode === 'register' && password !== passwordConfirmation) {
+      setError('Les mots de passe ne correspondent pas.');
+      return;
+    }
+
     setBusy(true);
     try {
       const response =
@@ -57,6 +159,8 @@ export function AuthPage({ onAuthenticated }: Props) {
               onClick={() => {
                 setMode(value);
                 setError('');
+                setShowPassword(false);
+                setShowPasswordConfirmation(false);
               }}
               className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
                 mode === value ? 'bg-accent text-bg' : 'text-text-muted hover:text-text'
@@ -92,21 +196,31 @@ export function AuthPage({ onAuthenticated }: Props) {
               className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-accent"
             />
           </label>
-          <label className="block space-y-1.5">
-            <span className="block text-sm font-medium">Mot de passe</span>
-            <input
-              required
-              type="password"
-              minLength={mode === 'register' ? 8 : 1}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-              className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-accent"
+          <PasswordField
+            id="password"
+            label="Mot de passe"
+            value={password}
+            onChange={setPassword}
+            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+            minLength={mode === 'register' ? 8 : 1}
+            visible={showPassword}
+            onToggleVisibility={() => setShowPassword((current) => !current)}
+            hint={mode === 'register' ? 'Au moins 8 caractères.' : undefined}
+          />
+          {mode === 'register' && (
+            <PasswordField
+              id="password-confirmation"
+              label="Confirmation du mot de passe"
+              value={passwordConfirmation}
+              onChange={setPasswordConfirmation}
+              autoComplete="new-password"
+              minLength={8}
+              visible={showPasswordConfirmation}
+              onToggleVisibility={() =>
+                setShowPasswordConfirmation((current) => !current)
+              }
             />
-            {mode === 'register' && (
-              <span className="block text-xs text-text-muted">Au moins 8 caractères.</span>
-            )}
-          </label>
+          )}
           {mode === 'register' && (
             <label className="block space-y-1.5">
               <span className="block text-sm font-medium">Nom de l'organisation</span>

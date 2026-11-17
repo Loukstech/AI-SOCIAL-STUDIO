@@ -25,7 +25,51 @@ describe('App', () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: 'Créer un compte' }));
     expect(screen.getByText('Votre nom')).toBeInTheDocument();
+    expect(screen.getByText('Confirmation du mot de passe')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Créer mon espace' })).toBeInTheDocument();
+  });
+
+  it('affiche et masque les mots de passe avec un bouton œil', () => {
+    render(<App />);
+
+    const password = screen.getByLabelText('Mot de passe');
+    expect(password).toHaveAttribute('type', 'password');
+    fireEvent.click(screen.getByRole('button', { name: 'Afficher mot de passe' }));
+    expect(password).toHaveAttribute('type', 'text');
+    fireEvent.click(screen.getByRole('button', { name: 'Masquer mot de passe' }));
+    expect(password).toHaveAttribute('type', 'password');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Créer un compte' }));
+    const confirmation = screen.getByLabelText('Confirmation du mot de passe');
+    expect(confirmation).toHaveAttribute('type', 'password');
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Afficher confirmation du mot de passe' }),
+    );
+    expect(confirmation).toHaveAttribute('type', 'text');
+  });
+
+  it('refuse une confirmation de mot de passe différente', () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: 'Créer un compte' }));
+
+    fireEvent.change(screen.getByLabelText('Votre nom'), {
+      target: { value: 'Loukstech' },
+    });
+    fireEvent.change(screen.getByLabelText('Adresse e-mail'), {
+      target: { value: 'loukstech@gmail.com' },
+    });
+    fireEvent.change(screen.getByLabelText('Mot de passe'), {
+      target: { value: 'motdepasse123' },
+    });
+    fireEvent.change(screen.getByLabelText('Confirmation du mot de passe'), {
+      target: { value: 'autremotdepasse123' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Créer mon espace' }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Les mots de passe ne correspondent pas.',
+    );
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it('vérifie la session existante avant d’afficher le tableau de bord', () => {
