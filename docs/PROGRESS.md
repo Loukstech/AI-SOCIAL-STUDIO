@@ -403,3 +403,5 @@ La médiathèque dépose le binaire dans la table `MediaObject` de la base Neon 
 - Suite dédiée `pnpm test:storage` : upload, téléchargement effectif de l'URL signée, bornes d'expiration, isolation multi-tenant, suppression.
 
 Qualité : **435 tests unitaires** (6 nouveaux sur le stockage/URL signée), lint / typecheck / format / build verts. Migration appliquée sur Neon (20 migrations). Aucune variable d'environnement supplémentaire requise en production.
+
+Validation en ligne : `pnpm test:storage` **22/22** (upload, URL signée téléchargeable, bornes, isolation, suppression), `pnpm test:online` **12/12**. Données de test supprimées ; `scripts/cleanup-test-data.mjs` nettoie aussi les blobs orphelins.
