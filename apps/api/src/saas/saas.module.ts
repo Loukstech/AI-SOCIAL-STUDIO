@@ -1,4 +1,5 @@
 import { stat } from 'node:fs/promises';
+import { join, resolve } from 'node:path';
 import { Module } from '@nestjs/common';
 import { resolveFfmpegPath, runFfmpeg } from '@ass/worker-video';
 import { Reflector } from '@nestjs/core';
@@ -20,6 +21,7 @@ import { PortfolioService } from '../collaboration/portfolio.service.js';
 import { TasksController } from '../collaboration/tasks.controller.js';
 import { TasksService } from '../collaboration/tasks.service.js';
 import { Db } from '../common/validation.js';
+import { ENV, type Env } from '../config/env.js';
 import { BrandsController } from './brands.controller.js';
 import { DashboardController } from './dashboard.controller.js';
 import { InvitationAcceptanceController, InvitationsController } from './invitations.controller.js';
@@ -43,6 +45,7 @@ import { VideoPipelineService } from '../video/video-pipeline.service.js';
 import {
   VIDEO_FFMPEG_CHECK,
   VIDEO_RENDER_RUNNER,
+  VIDEO_SOURCE_ROOT,
   VideoRenderService,
 } from '../video/video-render.service.js';
 import { VideoProjectsController } from '../video/video-projects.controller.js';
@@ -83,6 +86,12 @@ import { VideoProjectsController } from '../video/video-projects.controller.js';
     VideoPipelineService,
     VideoRenderService,
     { provide: VIDEO_RENDER_RUNNER, useValue: runFfmpeg },
+    {
+      provide: VIDEO_SOURCE_ROOT,
+      useFactory: (env: Env) =>
+        resolve(env.VIDEO_SOURCE_DIR ?? join(process.cwd(), 'tmp', 'uploads')),
+      inject: [ENV],
+    },
     {
       provide: VIDEO_FFMPEG_CHECK,
       useValue: async () => {

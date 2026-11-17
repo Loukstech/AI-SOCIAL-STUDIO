@@ -53,6 +53,16 @@ export const reserveCreditsSchema = z.object({
 });
 export type ReserveCreditsInput = z.infer<typeof reserveCreditsSchema>;
 
+/**
+ * Octroi manuel (§16.2 + §17). Sans `organizationId`, le super-admin crédite
+ * sa propre organisation ; avec ce champ, il cible explicitement un client.
+ * La route reste réservée aux administrateurs plateforme.
+ */
+export const grantCreditsSchema = reserveCreditsSchema.extend({
+  organizationId: z.string().trim().min(1).optional(),
+});
+export type GrantCreditsInput = z.infer<typeof grantCreditsSchema>;
+
 export const settleCreditsSchema = z.object({
   idempotencyKey: z.string().trim().min(3).max(120),
 });

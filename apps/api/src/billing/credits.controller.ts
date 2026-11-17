@@ -3,11 +3,13 @@ import {
   creditAccountSchema,
   creditLedgerSchema,
   creditOperationSchema,
+  grantCreditsSchema,
   reserveCreditsSchema,
   settleCreditsSchema,
   type CreditAccount,
   type CreditLedger,
   type CreditOperation,
+  type GrantCreditsInput,
   type ReserveCreditsInput,
   type SettleCreditsInput,
 } from '@ass/shared';
@@ -72,10 +74,16 @@ export class CreditsController {
   @UseGuards(SuperAdminGuard)
   async grant(
     @Req() request: AuthedRequest,
-    @Body(new ZodPipe(reserveCreditsSchema)) body: ReserveCreditsInput,
+    @Body(new ZodPipe(grantCreditsSchema)) body: GrantCreditsInput,
   ): Promise<CreditOperation> {
+    // Sans cible explicite, le super-admin agit sur sa propre organisation.
+    // Avec `organizationId`, il crédite nommément une organisation cliente.
     return creditOperationSchema.parse(
-      await this.service.grant(request.auth!.organizationId, body, request.auth!.userId),
+      await this.service.grant(
+        body.organizationId ?? request.auth!.organizationId,
+        body,
+        request.auth!.userId,
+      ),
     );
   }
 }

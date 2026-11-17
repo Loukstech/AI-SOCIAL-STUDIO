@@ -1,6 +1,6 @@
-import { mkdtemp, readFile, rm, stat, unlink, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, stat, symlink, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { RenderVideoInput } from '@ass/shared';
@@ -15,7 +15,9 @@ const input: RenderVideoInput = {
 
 describe('rendu vidéo via l’API (§22)', () => {
   let directory: string;
+  let outsideDirectory: string;
   let source: string;
+  let outsideSource: string;
   let calls: string[][];
   let available: boolean;
   let service: VideoRenderService;
@@ -23,8 +25,11 @@ describe('rendu vidéo via l’API (§22)', () => {
 
   beforeEach(async () => {
     directory = await mkdtemp(join(tmpdir(), 'ass-api-render-'));
+    outsideDirectory = await mkdtemp(join(tmpdir(), 'ass-api-outside-'));
     source = join(directory, 'source.mp4');
+    outsideSource = join(outsideDirectory, 'source.mp4');
     await writeFile(source, 'source');
+    await writeFile(outsideSource, 'source');
     calls = [];
     available = true;
     track = null;
@@ -48,6 +53,7 @@ describe('rendu vidéo via l’API (§22)', () => {
         await writeFile(args[args.length - 1]!, 'rendu');
       },
       async () => available,
+      directory,
     );
   });
 
@@ -55,6 +61,7 @@ describe('rendu vidéo via l’API (§22)', () => {
     await unlink(join(process.cwd(), 'tmp', 'test-render.mp4')).catch(() => undefined);
     await unlink(join(process.cwd(), 'tmp', 'track-1.srt')).catch(() => undefined);
     await rm(directory, { recursive: true, force: true });
+    await rm(outsideDirectory, { recursive: true, force: true });
   });
 
   it('rend un projet depuis son URL file://', async () => {
@@ -101,6 +108,7 @@ describe('rendu vidéo via l’API (§22)', () => {
       { client } as unknown as Db,
       async () => undefined,
       async () => true,
+      directory,
     );
     await expect(
       remote.renderProject('org-1', 'project-1', { ...input, sourcePath: undefined }),
@@ -134,5 +142,49 @@ describe('rendu vidéo via l’API (§22)', () => {
       'worker',
     ]);
     expect((await readFile(result.outputPath, 'utf8')).toString()).toBe('rendu');
+  });
+
+  it('refuse un fichier situé hors du dossier autorisé', async () => {
+    await expect(
+      service.renderProject('org-1', 'project-1', { ...input, sourcePath: outsideSource }),
+    ).rejects.toThrow('Fichier source hors du dossier autorisé');
+    expect(calls).toHaveLength(0);
+  });
+
+  it('refuse une traversée de dossier même si le fichier existe', async () => {
+    const traversal = join(directory, '..', basename(outsideDirectory), 'source.mp4');
+    await expect(
+      service.renderProject('org-1', 'project-1', { ...input, sourcePath: traversal }),
+    ).rejects.toThrow('Fichier source hors du dossier autorisé');
+    expect(calls).toHaveLength(0);
+  });
+
+  it('refuse un lien symbolique qui sort du dossier autorisé', async () => {
+    const link = join(directory, 'echappement.mp4');
+    await symlink(outsideSource, link);
+    await expect(
+      service.renderProject('org-1', 'project-1', { ...input, sourcePath: link }),
+    ).rejects.toThrow('Fichier source hors du dossier autorisé');
+    expect(calls).toHaveLength(0);
+  });
+
+  it('refuse une URL file:// située hors du dossier autorisé', async () => {
+    const client = {
+      videoProject: {
+        findFirst: async () => ({
+          id: 'project-1',
+          sourceUrl: pathToFileURL(outsideSource).toString(),
+        }),
+      },
+    };
+    const remote = new VideoRenderService(
+      { client } as unknown as Db,
+      async () => undefined,
+      async () => true,
+      directory,
+    );
+    await expect(
+      remote.renderProject('org-1', 'project-1', { ...input, sourcePath: undefined }),
+    ).rejects.toThrow('Fichier source hors du dossier autorisé');
   });
 });

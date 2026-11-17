@@ -344,6 +344,15 @@ Suite E2E dédiée à la Phase 13 et mise à jour du worktree d'origine.
 
 ### Limites consignées, pas des régressions
 
-- `/credits/grant` crédite uniquement l'organisation du super-admin appelant. Octroyer à un client demande une route dédiée ou un appel depuis l'organisation cible ; le test fixe ce comportement au lieu de le contourner.
-- `sourcePath` du rendu accepte encore un chemin absolu sur la machine de l'API. À confiner à un dossier d'uploads avant d'exposer le rendu à des utilisateurs non fiables.
 - Les intégrations tierces restent honnêtement indisponibles tant que les identifiants OAuth, le transport e-mail, le stockage objet et le fournisseur de transcription ne sont pas branchés.
+
+---
+
+## Compléments de la Phase 13 (17 novembre 2026)
+
+**Statut : CORRIGÉ ET DÉPLOYÉ.**
+
+- **Octroi ciblé** : `POST /credits/grant` accepte désormais un `organizationId` optionnel. Sans lui, le super-admin crédite sa propre organisation comme avant ; avec lui, il crédite nommément une organisation cliente. La route reste réservée aux administrateurs plateforme et l'acteur est toujours enregistré sur la transaction. Le contrat partagé `grantCreditsSchema` porte ce champ optionnel.
+- **Confinement du rendu** : `sourcePath` et les `file://` du projet sont résolus puis comparés à une racine configurée par `VIDEO_SOURCE_DIR` (par défaut `tmp/uploads` relatif à l'API). Une traversée `..`, un chemin absolu hors racine ou un lien symbolique sortant sont refusés avec « Fichier source hors du dossier autorisé », avant tout appel à `ffmpeg` — y compris quand le fichier existe réellement.
+- Qualité : **416 tests unitaires API** (4 nouveaux sur le confinement), lint / typecheck / build / format verts. Suite `smoke-phase13` étendue à **90 vérifications locales**, dont un vrai rendu ffmpeg depuis la racine autorisée et l'octroi ciblé sans effet sur le solde du super-admin.
+- `.env.example` documente `VIDEO_SOURCE_DIR`. Aucune migration n'était nécessaire.

@@ -36,6 +36,9 @@ const envSchema = z
     // Fournisseur de transcription. `mock` = démonstration déterministe, sans appel externe.
     AI_PROVIDER: z.enum(['mock', 'openai']).default('mock'),
     OPENAI_API_KEY: z.string().min(10).optional(),
+    // Racine des fichiers locaux acceptés par le rendu ffmpeg (§22). Tout
+    // `sourcePath` ou `file://` hors de ce dossier est refusé, symlinks inclus.
+    VIDEO_SOURCE_DIR: z.string().trim().min(1).optional(),
     // Boucle de publication : réclame les publications arrivées à échéance.
     // En production Render (une seule instance) elle tourne dans le processus API.
     PUBLISH_SCHEDULER: z.enum(['on', 'off']).default('on'),

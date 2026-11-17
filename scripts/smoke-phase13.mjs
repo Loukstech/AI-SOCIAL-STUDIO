@@ -14,7 +14,8 @@
  *   sur la même réservation doit échouer, la clé est propre à chaque compte ;
  * - **le rendu n'invente pas de vidéo** : sans fichier local, l'API refuse avec
  *   un motif explicite. Un vrai rendu n'est tenté que si `SMOKE13_VIDEO_SOURCE`
- *   désigne un fichier visible par la machine qui exécute l'API.
+ *   désigne un fichier visible par la machine qui exécute l'API **et** situé
+ *   dans `VIDEO_SOURCE_DIR` (par défaut `tmp/uploads` relative à l'API).
  *
  * `DATABASE_URL` est requis : il sert uniquement à élever/rétrograder le compte
  * de test créé par ce script. Le nettoyage habituel supprime ce compte.
@@ -392,6 +393,60 @@ async function main() {
       describe(foreignGrant),
     );
 
+    const otherBeforeGrant = await call('/credits/account', {
+      token: other.token,
+      org: other.orgId,
+    });
+    const adminBeforeTargeted = await call('/credits/account', {
+      token: admin.token,
+      org: admin.orgId,
+    });
+    const targeted = await call('/credits/grant', {
+      method: 'POST',
+      token: admin.token,
+      org: admin.orgId,
+      body: {
+        amount: 40,
+        idempotencyKey: `grant-target-${RUN_ID}`,
+        organizationId: other.orgId,
+        label: 'Octroi ciblé Phase 13',
+      },
+    });
+    ok(
+      'Un super-admin peut créditer une organisation nommément',
+      isSuccess(targeted.status) && targeted.data?.account?.organizationId === other.orgId,
+      describe(targeted),
+    );
+    ok(
+      'L’octroi ciblé augmente le solde du client',
+      targeted.data?.account?.balance === otherBeforeGrant.data.balance + 40,
+      String(targeted.data?.account?.balance),
+    );
+    const adminAfterTargeted = await call('/credits/account', {
+      token: admin.token,
+      org: admin.orgId,
+    });
+    ok(
+      'L’octroi ciblé ne touche pas le solde du super-admin',
+      adminAfterTargeted.data?.balance === adminBeforeTargeted.data.balance,
+      String(adminAfterTargeted.data?.balance),
+    );
+    const foreignTargeted = await call('/credits/grant', {
+      method: 'POST',
+      token: other.token,
+      org: other.orgId,
+      body: {
+        amount: 5,
+        idempotencyKey: `foreign-target-${RUN_ID}`,
+        organizationId: admin.orgId,
+      },
+    });
+    ok(
+      'Un non-admin ne peut pas cibler une autre organisation (403)',
+      foreignTargeted.status === 403,
+      describe(foreignTargeted),
+    );
+
     const reserveKey = `reserve-a-${RUN_ID}`;
     const reserved = await call('/credits/reserve', {
       method: 'POST',
@@ -618,7 +673,9 @@ async function main() {
     );
     ok(
       'Le refus ne prétend pas qu’un rendu a eu lieu',
-      String(missingSource.data?.message ?? '').includes('Fichier source introuvable'),
+      /Fichier source hors du dossier autorisé|Fichier source introuvable/.test(
+        String(missingSource.data?.message ?? ''),
+      ),
       describe(missingSource),
     );
 
