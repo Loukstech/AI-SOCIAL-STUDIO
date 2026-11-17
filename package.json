@@ -33,7 +33,8 @@
     "test:phase10": "node scripts/smoke-phase10.mjs",
     "test:phase11": "node scripts/smoke-phase11.mjs",
     "test:phase12": "node scripts/smoke-phase12.mjs",
-    "test:phase13": "node scripts/smoke-phase13.mjs"
+    "test:phase13": "node scripts/smoke-phase13.mjs",
+    "test:media": "node scripts/smoke-media.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -27,6 +27,9 @@ enum MediaKind {
   VIDEO
   AUDIO
   DOCUMENT
+  LOGO
+  PROJECT
+  EXPORT
 }
 
 enum SocialPlatform {
@@ -235,13 +238,28 @@ model MediaAsset {
   mimeType       String?
   sizeBytes      Int?
   sourceUrl      String?
-  createdAt      DateTime     @default(now())
+  /** Dossier logique ; `null` racine. Aucun fichier n'est stocké en BLOB. */
+  folder         String?
+  tags           String[]       @default([])
+  favorite       Boolean        @default(false)
+  /** Empreinte du fichier source, utilisée pour signaler les doublons. */
+  checksum       String?
+  /** Conditions d'utilisation déclarées par le propriétaire. */
+  rights         String?
+  /** Version précédente du même média, dans la même organisation. */
+  versionOfId    String?
+  createdAt      DateTime       @default(now())
   deletedAt      DateTime?
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  brand          Brand?       @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  organization   Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  brand          Brand?         @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  versionOf      MediaAsset?    @relation("MediaVersions", fields: [versionOfId], references: [id], onDelete: SetNull)
+  versions       MediaAsset[]   @relation("MediaVersions")
 
   @@index([organizationId])
   @@index([brandId])
+  @@index([organizationId, folder])
+  @@index([organizationId, checksum])
+  @@index([organizationId, favorite])
 }
 
 model AuditLog {

@@ -24,7 +24,15 @@ export const organizationRoleLabels: Record<OrganizationRole, string> = {
 /** Rôles autorisés à valider ou refuser un contenu (§14, validation client). */
 export const reviewerRoles: OrganizationRole[] = ['OWNER', 'ADMIN', 'CLIENT'];
 
-export const mediaKinds = ['IMAGE', 'VIDEO', 'AUDIO', 'DOCUMENT'] as const;
+export const mediaKinds = [
+  'IMAGE',
+  'VIDEO',
+  'AUDIO',
+  'DOCUMENT',
+  'LOGO',
+  'PROJECT',
+  'EXPORT',
+] as const;
 export const mediaKindSchema = z.enum(mediaKinds);
 export type MediaKind = (typeof mediaKinds)[number];
 
@@ -117,7 +125,18 @@ export type AddMemberInput = z.infer<typeof addMemberSchema>;
 
 // Les schémas de marque et de Brand Kit vivent dans `brand.ts` (voir §8).
 
-// --- Médiathèque (métadonnées ; le fichier binaire arrive avec le stockage objet) ---
+// --- Médiathèque (§12) : métadonnées, recherche, versions et doublons ---
+// Le fichier binaire reste dans un stockage objet ; la base ne garde que la
+// référence et les informations nécessaires à la recherche.
+
+const mediaMetadataSchema = {
+  folder: z.string().trim().max(120).optional(),
+  tags: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
+  favorite: z.boolean().optional(),
+  checksum: z.string().trim().max(128).optional(),
+  rights: z.string().trim().max(500).optional(),
+  versionOfId: z.string().optional(),
+};
 
 export const createMediaSchema = z.object({
   name: z.string().trim().min(1).max(200),
@@ -126,8 +145,27 @@ export const createMediaSchema = z.object({
   sizeBytes: z.number().int().nonnegative().optional(),
   sourceUrl: z.string().trim().url().max(2048).optional(),
   brandId: z.string().optional(),
+  ...mediaMetadataSchema,
 });
 export type CreateMediaInput = z.infer<typeof createMediaSchema>;
+
+export const updateMediaSchema = z
+  .object({
+    name: z.string().trim().min(1).max(200).optional(),
+    kind: mediaKindSchema.optional(),
+    mimeType: z.string().trim().max(120).nullable().optional(),
+    sizeBytes: z.number().int().nonnegative().nullable().optional(),
+    sourceUrl: z.string().trim().url().max(2048).nullable().optional(),
+    brandId: z.string().nullable().optional(),
+    folder: z.string().trim().max(120).nullable().optional(),
+    tags: z.array(z.string().trim().min(1).max(40)).max(20).optional(),
+    favorite: z.boolean().optional(),
+    checksum: z.string().trim().max(128).nullable().optional(),
+    rights: z.string().trim().max(500).nullable().optional(),
+    versionOfId: z.string().nullable().optional(),
+  })
+  .refine((value) => Object.keys(value).length > 0, 'Au moins un champ est requis');
+export type UpdateMediaInput = z.infer<typeof updateMediaSchema>;
 
 export const mediaAssetSchema = z.object({
   id: z.string(),
@@ -138,9 +176,31 @@ export const mediaAssetSchema = z.object({
   mimeType: z.string().nullable(),
   sizeBytes: z.number().nullable(),
   sourceUrl: z.string().nullable(),
+  folder: z.string().nullable(),
+  tags: z.array(z.string()),
+  favorite: z.boolean(),
+  checksum: z.string().nullable(),
+  rights: z.string().nullable(),
+  versionOfId: z.string().nullable(),
   createdAt: z.string(),
 });
 export type MediaAsset = z.infer<typeof mediaAssetSchema>;
+
+export const mediaQuerySchema = z.object({
+  search: z.string().trim().max(120).optional(),
+  kind: mediaKindSchema.optional(),
+  folder: z.string().trim().max(120).optional(),
+  tag: z.string().trim().max(40).optional(),
+  favorite: z.enum(['true', 'false']).optional(),
+  limit: z.coerce.number().int().min(1).max(200).default(100),
+});
+export type MediaQuery = z.infer<typeof mediaQuerySchema>;
+
+export const mediaDuplicateGroupSchema = z.object({
+  checksum: z.string(),
+  assets: z.array(mediaAssetSchema),
+});
+export type MediaDuplicateGroup = z.infer<typeof mediaDuplicateGroupSchema>;
 
 // --- Tableau de bord ---
 

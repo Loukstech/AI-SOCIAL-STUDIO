@@ -36,6 +36,7 @@ import {
   imageProjectSchema,
   invitationSchema,
   mediaAssetSchema,
+  mediaDuplicateGroupSchema,
   memberSchema,
   organizationSchema,
   portfolioSchema,
@@ -116,6 +117,8 @@ import {
   type Invitation,
   type LoginInput,
   type MediaAsset,
+  type MediaDuplicateGroup,
+  type MediaQuery,
   type Member,
   type Organization,
   type Plan,
@@ -132,6 +135,7 @@ import {
   type RewriteVariantInput,
   type SettleCreditsInput,
   type UpdateAdminUserInput,
+  type UpdateMediaInput,
   type UpdateOrganizationPlanInput,
   type CreateVideoProjectInput,
   type SchedulePublicationInput,
@@ -349,8 +353,18 @@ export const api = {
   },
 
   media: {
-    list: (): Promise<MediaAsset[]> => request('/media', z.array(mediaAssetSchema)),
+    list: (query: Partial<MediaQuery> = {}): Promise<MediaAsset[]> =>
+      request(`/media${queryString(query)}`, z.array(mediaAssetSchema)),
+    duplicates: (): Promise<MediaDuplicateGroup[]> =>
+      request('/media/duplicates', z.array(mediaDuplicateGroupSchema)),
     create: (body: CreateMediaInput): Promise<MediaAsset> => post('/media', mediaAssetSchema, body),
+    update: (id: string, body: UpdateMediaInput): Promise<MediaAsset> =>
+      request(`/media/${id}`, mediaAssetSchema, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+    versions: (id: string): Promise<MediaAsset[]> =>
+      request(`/media/${id}/versions`, z.array(mediaAssetSchema)),
     remove: (id: string): Promise<unknown> =>
       request(`/media/${id}`, z.unknown(), { method: 'DELETE' }),
   },

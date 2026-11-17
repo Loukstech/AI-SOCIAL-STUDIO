@@ -357,3 +357,18 @@ Suite E2E dédiée à la Phase 13 et mise à jour du worktree d'origine.
 - Qualité : **416 tests unitaires API** (4 nouveaux sur le confinement), 4 web, 6 worker ; lint / typecheck / build / format verts. Suite `smoke-phase13` étendue à **90 vérifications locales** (dont un vrai rendu ffmpeg depuis la racine autorisée et l'octroi ciblé sans effet sur le solde du super-admin) et **87 vérifications en production**. Les 13 suites E2E antérieures ont été rejouées : **839 vérifications** supplémentaires, toutes vertes. Base nettoyée à 0 résidu de test (41 comptes et 197 journaux orphelins supprimés).
 - `.env.example` documente `VIDEO_SOURCE_DIR`. Aucune migration n'était nécessaire.
 - Déploiements : Render `dep-dbtv0a3bc2fs73fjp4i0` **live sur `1215bda`** ; Cloudflare Pages sert le bundle `index-B-mYa9Tc.js`, identique au build local. Aucune migration de base requise.
+
+---
+
+## Médiathèque — §12 (17 novembre 2026)
+
+**Statut : EN COURS DE LIVRAISON.**
+
+- Les types du §12 sont complets : `IMAGE`, `VIDEO`, `AUDIO`, `DOCUMENT`, `LOGO`, `PROJECT`, `EXPORT`. Les trois derniers rejoignent l'énumération partagée et la base (migration `20261117073500_media_kinds`).
+- `MediaAsset` gagne `folder`, `tags`, `favorite`, `checksum`, `rights` et `versionOfId` (migration `20261117073000_media_library`, 18 migrations au total). Aucun binaire n'est stocké en base : `sourceUrl` reste la référence externe, comme l'exige le §12.
+- Recherche et filtres sont exécutés **en base** : nom, dossier, tag, type, favori et limite bornée. Le dossier vide est interprété comme la racine. Aucun filtrage côté interface.
+- Métadonnées modifiables : nom, type, URL, dossier, tags, favori, empreinte, droits. `null` vide un champ ; un corps vide est refusé.
+- Versions : un média peut pointer vers son origine dans la même organisation ; un média ne peut pas être sa propre version. `GET /media/:id/versions` liste les versions.
+- Doublons : `GET /media/duplicates` regroupe les médias partageant la même empreinte déclarée, organisation par organisation. La suppression logique retire immédiatement un média de son groupe.
+- Interface : recherche, cinq filtres, formulaire enrichi, bascule favori, panneau des versions et panneau des doublons.
+- Qualité : 7 tests unitaires de contrôleur, suite `scripts/smoke-media.mjs` (`pnpm test:media`) avec **46 vérifications E2E locales**. Isolation multi-tenant vérifiée sur la lecture, la mutation, les versions et les doublons.
