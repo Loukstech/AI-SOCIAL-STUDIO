@@ -28,6 +28,7 @@ const TABLES = [
   'invitation',
   'brand',
   'mediaAsset',
+  'mediaObject',
   'socialAccount',
   'videoProject',
   'contentProject',
@@ -75,6 +76,16 @@ async function main() {
     await prisma.user.deleteMany({ where: { id: { in: ids } } });
     console.log(`Utilisateurs supprimés : ${ids.length}`);
   }
+
+  // `MediaObject` n'a pas de clé étrangère vers `MediaAsset` : les octets
+  // dont le média a disparu resteraient sinon orphelins dans la base.
+  const blobs = await prisma.$executeRaw`
+    DELETE FROM "MediaObject"
+    WHERE "storageKey" NOT IN (
+      SELECT "storageKey" FROM "MediaAsset" WHERE "storageKey" IS NOT NULL
+    )
+  `;
+  console.log(`Blobs orphelins supprimés : ${blobs}`);
 
   // `AuditLog.organization` est en `SetNull` : les lignes survivent à la
   // suppression de l'organisation, orphelines et donc inatteignables.
