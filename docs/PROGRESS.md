@@ -362,8 +362,12 @@ Suite E2E dédiée à la Phase 13 et mise à jour du worktree d'origine.
 
 ## Médiathèque — §12 (17 novembre 2026)
 
-**Statut : EN COURS DE LIVRAISON.**
+**Statut : CODE LIVRÉ, VÉRIFICATION EN LIGNE EN ATTENTE.**
 
+**Fait :**
+
+- Commit `e5a2c59` poussé sur `main`. Les deux migrations ont été appliquées sur Neon avant le push (18 migrations au total) ; le client Prisma a été régénéré.
+- Frontend Cloudflare déployé sur la branche `main` : bundle `index-FoVtDn7J.js`, identique au build local.
 - Les types du §12 sont complets : `IMAGE`, `VIDEO`, `AUDIO`, `DOCUMENT`, `LOGO`, `PROJECT`, `EXPORT`. Les trois derniers rejoignent l'énumération partagée et la base (migration `20261117073500_media_kinds`).
 - `MediaAsset` gagne `folder`, `tags`, `favorite`, `checksum`, `rights` et `versionOfId` (migration `20261117073000_media_library`, 18 migrations au total). Aucun binaire n'est stocké en base : `sourceUrl` reste la référence externe, comme l'exige le §12.
 - Recherche et filtres sont exécutés **en base** : nom, dossier, tag, type, favori et limite bornée. Le dossier vide est interprété comme la racine. Aucun filtrage côté interface.
@@ -371,4 +375,12 @@ Suite E2E dédiée à la Phase 13 et mise à jour du worktree d'origine.
 - Versions : un média peut pointer vers son origine dans la même organisation ; un média ne peut pas être sa propre version. `GET /media/:id/versions` liste les versions.
 - Doublons : `GET /media/duplicates` regroupe les médias partageant la même empreinte déclarée, organisation par organisation. La suppression logique retire immédiatement un média de son groupe.
 - Interface : recherche, cinq filtres, formulaire enrichi, bascule favori, panneau des versions et panneau des doublons.
-- Qualité : 7 tests unitaires de contrôleur, suite `scripts/smoke-media.mjs` (`pnpm test:media`) avec **46 vérifications E2E locales**. Isolation multi-tenant vérifiée sur la lecture, la mutation, les versions et les doublons.
+- Qualité locale : 423 tests API (7 nouveaux sur la médiathèque), 4 web, 6 worker ; lint / typecheck / build / format verts. Suite `scripts/smoke-media.mjs` (`pnpm test:media`) avec **46 vérifications E2E locales**. Isolation multi-tenant vérifiée sur la lecture, la mutation, les versions et les doublons.
+
+**Reste à faire :**
+
+- Attendre et confirmer l'auto-déploiement Render sur `e5a2c59` (non vérifié : l'arrêt a été demandé juste après le push).
+- Rejouer `pnpm test:media` contre la production, puis les suites antérieures si nécessaire.
+- Nettoyer les données créées par le passage local : `node --env-file=.env scripts/cleanup-test-data.mjs`.
+- Brancher le stockage objet et les URLs signées temporaires pour les fichiers privés (§12) : la base ne garde aujourd'hui que `sourceUrl` et les métadonnées.
+- Backlog tiers inchangé : identifiants OAuth, transport e-mail, fournisseur de transcription. Aucun succès simulé n'est ajouté en leur absence.
