@@ -37,7 +37,7 @@ AUTH_SECRET=<openssl rand -base64 48>
 
 `AUTH_SECRET` signe les jetons de session (≥ 16 caractères) et est **obligatoire en production**.
 
-En production ces valeurs sont injectées par Render, pas par un fichier. Le jeu complet attendu sur Render est : `NODE_ENV`, `CORS_ORIGINS`, `DATABASE_URL`, `REDIS_URL`, `AUTH_SECRET`, `WEB_APP_URL` (base des liens d'invitation, `https://www.socialstudio.timestradinginter.com`) et `API_PUBLIC_URL` (base des URLs signées de fichiers, `https://ai-social-studio-api.onrender.com`). `MEDIA_STORAGE_DRIVER` vaut `database` par défaut : aucun réglage supplémentaire n'est nécessaire. `INVITATION_TTL_HOURS` est optionnel (168 h par défaut).
+En production ces valeurs sont injectées par Render, pas par un fichier. Le jeu complet attendu sur Render est : `NODE_ENV`, `CORS_ORIGINS`, `DATABASE_URL`, `REDIS_URL`, `AUTH_SECRET`, `WEB_APP_URL` (base des liens d'invitation, `https://www.socialstudio.timestradinginter.com`) et `API_PUBLIC_URL` (base des URLs signées de fichiers, `https://ai-social-studio-api.onrender.com`). `MEDIA_STORAGE_DRIVER` vaut `database` par défaut : aucun réglage supplémentaire n'est nécessaire. `RESEND_API_KEY` active l'envoi d'e-mails ; `MAIL_FROM` est optionnel (voir §Notifications). `INVITATION_TTL_HOURS` est optionnel (168 h par défaut).
 
 `AI_PROVIDER` vaut `mock` par défaut : la transcription de démonstration fonctionne sans variable supplémentaire. `OPENAI_API_KEY` n'est utile qu'une fois l'adaptateur réel écrit (Phase 4).
 
@@ -183,11 +183,12 @@ Le projet Cloudflare Pages est en **upload direct** (`ad_hoc`) : aucun dépôt G
 
 ### Notifications
 
-- Aucune variable d'environnement : le transport e-mail par défaut est **inerte**. Il refuse d'envoyer et l'enregistre (`NO_PROVIDER`) au lieu de simuler un succès.
-- Brancher un fournisseur transactionnel = remplacer `{ provide: MAIL_TRANSPORT, useValue: noopMailTransport }` dans `SaasModule` par une implémentation de `MailTransport`. Aucun autre fichier à toucher.
+- Transport **Resend** via `POST https://api.resend.com/emails`, implémenté dans `apps/api/src/notifications/mail.ts`. Sans `RESEND_API_KEY`, le transport reste inerte et enregistre `NO_PROVIDER` : aucun succès n'est simulé.
+- Variables : `RESEND_API_KEY` (clé « Sending access ») et `MAIL_FROM` (expéditeur vérifié, par défaut `AI Social Studio <onboarding@resend.dev>`). Le quota gratuit actuel est de 3 000 e-mails/mois et 100/jour.
+- Le plan gratuit `onboarding@resend.dev` ne peut envoyer qu'à l'adresse du compte Resend. Pour inviter n'importe qui, vérifier un domaine dans Resend puis poser `MAIL_FROM=AI Social Studio <noreply@votre-domaine>`.
+- Les invitations envoient aussi un e-mail best-effort avec le lien d'acceptation ; une panne du transport est journalisée mais ne bloque pas la création de l'invitation.
 - Les notifications sont écrites dans la même transaction logique que la transition qui les déclenche, mais leur échec est journalisé sans être propagé : une publication réussie n'est jamais annulée par un avertissement manquant.
 - La pastille de compteur interroge l'API toutes les 45 s : aucun WebSocket, aucun serveur supplémentaire, aucune consommation d'heures Render.
-- Aucun envoi sortant aujourd'hui, donc aucun coût ni quota.
 
 ### CORS
 

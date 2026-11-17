@@ -8,7 +8,9 @@ import {
   Get,
   HttpCode,
   Inject,
+  Logger,
   NotFoundException,
+  Optional,
   Param,
   Post,
   Req,
@@ -30,14 +32,18 @@ import { AuthGuard, MinRole } from '../auth/auth.guard.js';
 import type { AuthedRequest } from '../auth/auth.types.js';
 import { ENV, type Env } from '../config/env.js';
 import { tokenFingerprint } from '../auth/crypto.js';
+import { MAIL_TRANSPORT, noopMailTransport, type MailTransport } from '../notifications/mail.js';
 
 /** Invitations d'une organisation (réservées aux administrateurs). */
 @Controller('organizations/:organizationId/invitations')
 @UseGuards(AuthGuard)
 export class InvitationsController {
+  private readonly logger = new Logger(InvitationsController.name);
+
   constructor(
     @Inject(Db) private readonly db: Db,
     @Inject(ENV) private readonly env: Env,
+    @Optional() @Inject(MAIL_TRANSPORT) private readonly mail?: MailTransport,
   ) {}
 
   @Get()
@@ -94,6 +100,9 @@ export class InvitationsController {
       },
     });
 
+    const acceptUrl = `${this.env.WEB_APP_URL}/?invitation=${encodeURIComponent(token)}`;
+    const emailResult = await this.sendInvitationEmail(body.email, acceptUrl, expiresAt);
+
     await db.auditLog.create({
       data: {
         organizationId,
@@ -101,15 +110,55 @@ export class InvitationsController {
         action: 'invitation.created',
         targetType: 'invitation',
         targetId: invitation.id,
-        metadata: { email: body.email, role: body.role },
+        metadata: { email: body.email, role: body.role, emailStatus: emailResult },
       },
     });
 
     return {
       ...toInvitation(invitation),
       token,
-      acceptUrl: `${this.env.WEB_APP_URL}/?invitation=${encodeURIComponent(token)}`,
+      acceptUrl,
     };
+  }
+
+  /** Envoi best-effort : une panne du transport ne bloque pas l'invitation. */
+  private async sendInvitationEmail(
+    to: string,
+    acceptUrl: string,
+    expiresAt: Date,
+  ): Promise<string> {
+    if (this.env.NODE_ENV === 'test' || to.toLowerCase().endsWith('.test')) {
+      return 'SKIPPED_TEST_ADDRESS';
+    }
+
+    const transport = this.mail ?? noopMailTransport;
+    if (!transport.describe().available) return 'NO_PROVIDER';
+
+    let result;
+    try {
+      result = await transport.send({
+        to,
+        subject: 'Invitation à rejoindre AI Social Studio',
+        text: [
+          'Bonjour,',
+          '',
+          'Vous avez été invité à rejoindre AI Social Studio.',
+          '',
+          `Accepter l’invitation : ${acceptUrl}`,
+          '',
+          `Ce lien expire le ${expiresAt.toISOString()}.`,
+        ].join('\n'),
+      });
+    } catch (cause) {
+      this.logger.warn(`E-mail d’invitation non envoyé à ${to} : ${String(cause)}`);
+      return 'TRANSPORT_ERROR';
+    }
+
+    if (!result.ok) {
+      this.logger.warn(`E-mail d’invitation non envoyé à ${to} : ${result.message}`);
+      return result.code;
+    }
+    return 'SENT';
   }
 
   @Delete(':invitationId')

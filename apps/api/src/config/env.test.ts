@@ -9,6 +9,8 @@ describe('parseEnv', () => {
     expect(env.CORS_ORIGINS).toEqual(['http://localhost:5173']);
     expect(env.DATABASE_URL).toBeUndefined();
     expect(env.REDIS_URL).toBeUndefined();
+    expect(env.RESEND_API_KEY).toBeUndefined();
+    expect(env.MAIL_FROM).toBe('AI Social Studio <onboarding@resend.dev>');
   });
 
   it('traite une variable vide comme absente', () => {

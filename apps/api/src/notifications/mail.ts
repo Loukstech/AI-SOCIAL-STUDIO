@@ -53,3 +53,61 @@ export const noopMailTransport: MailTransport = {
     return { available: false, reason: NO_PROVIDER_REASON };
   },
 };
+
+/**
+ * Transport Resend via son API HTTP. Sans clé, on renvoie le transport inerte :
+ * aucune tentative d'envoi n'est simulée (§15).
+ */
+export function createResendTransport(config: { apiKey?: string; from?: string }): MailTransport {
+  if (!config.apiKey) return noopMailTransport;
+
+  const from = config.from || 'AI Social Studio <onboarding@resend.dev>';
+
+  return {
+    kind: 'API',
+    async send(message: MailMessage): Promise<MailResult> {
+      try {
+        const response = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${config.apiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from,
+            to: [message.to],
+            subject: message.subject,
+            text: message.text,
+          }),
+          signal: AbortSignal.timeout(10_000),
+        });
+
+        if (response.ok) return { ok: true };
+
+        let detail = await response.text();
+        try {
+          const parsed = JSON.parse(detail) as { message?: string };
+          detail = parsed.message ?? detail;
+        } catch {
+          // Le corps n'est pas toujours JSON (passerelle, 502…).
+        }
+        return {
+          ok: false,
+          code: 'TRANSPORT_ERROR',
+          message: `Resend ${response.status} : ${detail.slice(0, 300)}`,
+        };
+      } catch (cause) {
+        return {
+          ok: false,
+          code: 'TRANSPORT_ERROR',
+          message: `Transport e-mail indisponible : ${
+            cause instanceof Error ? cause.message : 'erreur inconnue'
+          }`,
+        };
+      }
+    },
+    describe() {
+      return { available: true, reason: null };
+    },
+  };
+}

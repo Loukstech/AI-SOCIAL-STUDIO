@@ -405,3 +405,15 @@ La médiathèque dépose le binaire dans la table `MediaObject` de la base Neon 
 Qualité : **435 tests unitaires** (6 nouveaux sur le stockage/URL signée), lint / typecheck / format / build verts. Migration appliquée sur Neon (20 migrations). Aucune variable d'environnement supplémentaire requise en production.
 
 Validation en ligne : `pnpm test:storage` **22/22** (upload, URL signée téléchargeable, bornes, isolation, suppression), `pnpm test:online` **12/12**. Données de test supprimées ; `scripts/cleanup-test-data.mjs` nettoie aussi les blobs orphelins.
+
+---
+
+## Transport e-mail Resend (17 novembre 2026)
+
+**Statut : CODE PRÊT, EN ATTENTE DE CLÉ API.**
+
+- `createResendTransport()` dans `apps/api/src/notifications/mail.ts` appelle `POST https://api.resend.com/emails` avec `Authorization: Bearer …`. Sans `RESEND_API_KEY`, le transport inerte reste en place et le statut `NO_PROVIDER` est conservé — aucun succès simulé.
+- `SaasModule` injecte le transport selon l'environnement. `MAIL_FROM` vaut par défaut `AI Social Studio <onboarding@resend.dev>` ; pour écrire à n'importe qui, il faudra vérifier un domaine dans Resend puis renseigner cette variable.
+- Les invitations envoient désormais le lien d'acceptation par e-mail, en best-effort : un échec est journalisé et tracé dans les métadonnées d'audit (`emailStatus`), mais l'invitation reste créée. Les adresses `.test` et l'environnement de test sont volontairement ignorés.
+- Qualité : **438 tests unitaires** (3 nouveaux sur Resend), typecheck vert. Quota gratuit Resend : 3 000 e-mails/mois, 100/jour.
+- Reste à faire : créer la clé Resend, renseigner `RESEND_API_KEY` sur Render, vérifier le domaine d'expédition, redéployer puis envoyer un e-mail de test réel.

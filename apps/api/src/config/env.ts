@@ -45,6 +45,10 @@ const envSchema = z
     PUBLISH_TICK_SECONDS: z.coerce.number().int().min(10).max(3600).default(60),
     // Transport de publication. Sans adaptateur OAuth natif, un webhook permet
     // de confier l'envoi à un scénario externe (n8n, Make…). Absent = non configuré.
+    // Transport e-mail transactionnel (§15). Sans clé, le transport reste
+    // explicitement inert et les notifications restent internes.
+    RESEND_API_KEY: z.string().trim().min(10).optional(),
+    MAIL_FROM: z.string().trim().min(3).default('AI Social Studio <onboarding@resend.dev>'),
     // Stockage des binaires de la médiathèque (§12). `database` utilise la base
     // PostgreSQL déjà configurée, sans fournisseur ni carte bancaire supplémentaire.
     // `s3` reste disponible pour brancher R2 ou un compatible S3 plus tard.
