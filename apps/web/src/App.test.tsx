@@ -42,9 +42,7 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Créer un compte' }));
     const confirmation = screen.getByLabelText('Confirmation du mot de passe');
     expect(confirmation).toHaveAttribute('type', 'password');
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Afficher confirmation du mot de passe' }),
-    );
+    fireEvent.click(screen.getByRole('button', { name: 'Afficher confirmation du mot de passe' }));
     expect(confirmation).toHaveAttribute('type', 'text');
   });
 
@@ -66,9 +64,7 @@ describe('App', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Créer mon espace' }));
 
-    expect(screen.getByRole('alert')).toHaveTextContent(
-      'Les mots de passe ne correspondent pas.',
-    );
+    expect(screen.getByRole('alert')).toHaveTextContent('Les mots de passe ne correspondent pas.');
     expect(fetch).not.toHaveBeenCalled();
   });
 

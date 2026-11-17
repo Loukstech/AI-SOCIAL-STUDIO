@@ -382,26 +382,24 @@ Suite E2E dédiée à la Phase 13 et mise à jour du worktree d'origine.
 - Attendre et confirmer l'auto-déploiement Render sur `e5a2c59` (non vérifié : l'arrêt a été demandé juste après le push).
 - Rejouer `pnpm test:media` contre la production, puis les suites antérieures si nécessaire.
 - Nettoyer les données créées par le passage local : `node --env-file=.env scripts/cleanup-test-data.mjs`.
-- Brancher le stockage objet et les URLs signées temporaires pour les fichiers privés (§12) : la base ne garde aujourd'hui que `sourceUrl` et les métadonnées.
+- Stockage privé et URLs signées implémentés dans Neon (voir section dédiée ci-dessous).
 - Backlog tiers inchangé : identifiants OAuth, transport e-mail, fournisseur de transcription. Aucun succès simulé n'est ajouté en leur absence.
 
 ---
 
-## Stockage objet et URLs signées (§12) — 17 novembre 2026
+## Stockage privé et URLs signées (§12) — 17 novembre 2026
 
-**Statut : CODE ET DÉPLOYÉ, EN ATTENTE D'ACTIVATION R2.**
+**Statut : CODE, MIGRÉ ET DÉPLOYÉ SANS FOURNISSEUR PAYANT.**
 
-La médiathèque ne se contente plus d'enregistrer une `sourceUrl` : le binaire est déposé dans un stockage S3-compatible et la base ne garde que la clé de l'objet.
+La médiathèque dépose le binaire dans la table `MediaObject` de la base Neon déjà configurée. Le pilote S3/R2 reste dans le code, mais R2 demande une souscription Cloudflare avec moyen de paiement : il n'est plus nécessaire.
 
-- `MediaAsset.storageKey` (migration `20261117090000_media_storage_key`, unique). `NULL` = média sans fichier. Aucun BLOB en PostgreSQL.
-- `ObjectStorageService` : client S3 paresseux, désactivé tant que `R2_ENDPOINT`, `R2_BUCKET_NAME`, `R2_ACCESS_KEY_ID` et `R2_SECRET_ACCESS_KEY` ne sont pas tous renseignés. Dans ce cas les routes dépendantes répondent **503 explicite**, jamais une URL factice.
+- `MediaAsset.storageKey` (migration `20261117090000_media_storage_key`, unique) référence le binaire. `NULL` = média sans fichier. La table séparée `MediaObject` (migration `20261117151500_media_object_blobs`) évite de charger les octets dans les listes de médias.
+- `MEDIA_STORAGE_DRIVER=database` par défaut. `ObjectStorageService` écrit, relit et supprime les octets via Prisma ; le pilote `s3` reste disponible avec les variables `R2_*`.
 - Clé privée préfixée par organisation (`org/<organizationId>/<assetId>/<nom>`), traversée refusée ; empreinte SHA-256 calculée côté serveur, pas déclarée par le client.
 - `POST /media/upload` (multipart, 25 Mo max) déduit le type du MIME, stocke le fichier puis crée la ligne. Si l'écriture en base échoue, l'objet est supprimé en compensation.
-- `GET /media/:id/url?expires=` (30–3600 s, défaut 900) renvoie une URL signée de lecture. Le fichier reste privé en permanence.
+- `GET /media/:id/url?expires=` (30–3600 s, défaut 900) renvoie une URL signée HMAC-SHA256 avec `AUTH_SECRET` : `GET /api/v1/media/file?key=...&exp=...&token=...`. Le fichier reste privé en permanence.
 - `DELETE /media/:id` supprime aussi l'objet (best-effort, journalisé si échec).
 - Interface : formulaire d'envoi et bouton « Ouvrir » sur les médias pourvus d'un fichier (`hasFile`).
 - Suite dédiée `pnpm test:storage` : upload, téléchargement effectif de l'URL signée, bornes d'expiration, isolation multi-tenant, suppression.
 
-Qualité : **429 tests unitaires** (9 nouveaux sur la médiathèque), lint / typecheck / format / build verts.
-
-**Blocage externe :** le compte Cloudflare renvoie `10042 — Please enable R2 through the Cloudflare Dashboard`. Le endpoint S3 n'est donc pas joignable. Il faut activer R2 dans le dashboard, créer le bucket, puis renseigner `R2_BUCKET_NAME` dans Render et relancer `pnpm test:storage`. Le reste des routes fonctionne normalement en attendant.
+Qualité : **435 tests unitaires** (6 nouveaux sur le stockage/URL signée), lint / typecheck / format / build verts. Migration appliquée sur Neon (20 migrations). Aucune variable d'environnement supplémentaire requise en production.

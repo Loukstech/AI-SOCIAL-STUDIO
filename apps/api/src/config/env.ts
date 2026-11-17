@@ -45,6 +45,10 @@ const envSchema = z
     PUBLISH_TICK_SECONDS: z.coerce.number().int().min(10).max(3600).default(60),
     // Transport de publication. Sans adaptateur OAuth natif, un webhook permet
     // de confier l'envoi à un scénario externe (n8n, Make…). Absent = non configuré.
+    // Stockage des binaires de la médiathèque (§12). `database` utilise la base
+    // PostgreSQL déjà configurée, sans fournisseur ni carte bancaire supplémentaire.
+    // `s3` reste disponible pour brancher R2 ou un compatible S3 plus tard.
+    MEDIA_STORAGE_DRIVER: z.enum(['database', 's3']).default('database'),
     // Stockage objet S3-compatible (Cloudflare R2). Absent = les routes qui
     // manipulent des fichiers répondent 503, jamais une URL factice (§12).
     R2_ENDPOINT: optionalUrl.refine((v) => v === undefined || /^https?:\/\//.test(v), {

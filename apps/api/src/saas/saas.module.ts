@@ -26,6 +26,7 @@ import { BrandsController } from './brands.controller.js';
 import { DashboardController } from './dashboard.controller.js';
 import { InvitationAcceptanceController, InvitationsController } from './invitations.controller.js';
 import { MediaController } from './media.controller.js';
+import { MediaFileController } from './media-file.controller.js';
 import { OrganizationsController } from './organizations.controller.js';
 import { SocialAccountsController } from './social-accounts.controller.js';
 import { ContentController, ContentGenerationController } from '../content/content.controller.js';
@@ -61,6 +62,7 @@ import { VideoProjectsController } from '../video/video-projects.controller.js';
     InvitationAcceptanceController,
     BrandsController,
     MediaController,
+    MediaFileController,
     SocialAccountsController,
     OAuthCallbackController,
     AnalyticsController,

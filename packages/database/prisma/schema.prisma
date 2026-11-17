@@ -238,7 +238,7 @@ model MediaAsset {
   mimeType       String?
   sizeBytes      Int?
   sourceUrl      String?
-  /** Clé de l'objet dans le stockage S3-compatible ; NULL si aucun fichier. */
+  /** Clé de l'objet binaire ; NULL si aucun fichier. */
   storageKey     String?       @unique
   /** Dossier logique ; `null` racine. Aucun fichier n'est stocké en BLOB. */
   folder         String?
@@ -262,6 +262,20 @@ model MediaAsset {
   @@index([organizationId, folder])
   @@index([organizationId, checksum])
   @@index([organizationId, favorite])
+}
+
+/// Binaire privé d'un média, stocké dans PostgreSQL quand aucun stockage objet
+/// externe n'est configuré. Table séparée de `MediaAsset` pour que les listes
+/// ne chargent jamais les octets des fichiers.
+model MediaObject {
+  storageKey String   @id
+  data       Bytes
+  mimeType   String
+  sizeBytes  Int
+  checksum   String
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
 }
 
 model AuditLog {

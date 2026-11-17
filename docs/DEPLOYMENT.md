@@ -11,11 +11,11 @@
 
 ## Infrastructure de données
 
-| Service        | Région       | Projet/Base                 | État          | Notes                                                                                                                                                |
-| -------------- | ------------ | --------------------------- | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| PostgreSQL     | eu-central-1 | Neon: `ai-social-studio`    | ✓ up          | 1 Go gratuit, query scaling gratuit                                                                                                                  |
-| Redis          | eu-central-1 | Upstash: `ai-social-studio` | ✓ up          | 500k commandes/mois, 256 Mo stockage                                                                                                                 |
-| Stockage objet | —            | Cloudflare R2               | ⛔ non activé | L'API Cloudflare répond « Please enable R2 through the Cloudflare Dashboard » : aucun bucket n'existe. Activation manuelle + carte bancaire requises |
+| Service             | Région            | Projet/Base                 | État                                                                                                                                                  | Notes                                |
+| ------------------- | ----------------- | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| PostgreSQL          | eu-central-1      | Neon: `ai-social-studio`    | ✓ up                                                                                                                                                  | 1 Go gratuit, query scaling gratuit  |
+| Redis               | eu-central-1      | Upstash: `ai-social-studio` | ✓ up                                                                                                                                                  | 500k commandes/mois, 256 Mo stockage |
+| Stockage des médias | Neon (PostgreSQL) | ✓ actif                     | Binaire dans la table `MediaObject`, URLs signées HMAC par l’API. Aucune carte ni compte supplémentaire ; le pilote S3/R2 reste disponible si désiré. |
 
 ## Configuration de l'environnement
 
@@ -37,7 +37,7 @@ AUTH_SECRET=<openssl rand -base64 48>
 
 `AUTH_SECRET` signe les jetons de session (≥ 16 caractères) et est **obligatoire en production**.
 
-En production ces valeurs sont injectées par Render, pas par un fichier. Le jeu complet attendu sur Render est : `NODE_ENV`, `CORS_ORIGINS`, `DATABASE_URL`, `REDIS_URL`, `AUTH_SECRET`, `WEB_APP_URL` (base des liens d'invitation, `https://ai-social-studio.pages.dev`). `INVITATION_TTL_HOURS` est optionnel (168 h par défaut).
+En production ces valeurs sont injectées par Render, pas par un fichier. Le jeu complet attendu sur Render est : `NODE_ENV`, `CORS_ORIGINS`, `DATABASE_URL`, `REDIS_URL`, `AUTH_SECRET`, `WEB_APP_URL` (base des liens d'invitation, `https://www.socialstudio.timestradinginter.com`) et `API_PUBLIC_URL` (base des URLs signées de fichiers, `https://ai-social-studio-api.onrender.com`). `MEDIA_STORAGE_DRIVER` vaut `database` par défaut : aucun réglage supplémentaire n'est nécessaire. `INVITATION_TTL_HOURS` est optionnel (168 h par défaut).
 
 `AI_PROVIDER` vaut `mock` par défaut : la transcription de démonstration fonctionne sans variable supplémentaire. `OPENAI_API_KEY` n'est utile qu'une fois l'adaptateur réel écrit (Phase 4).
 
@@ -93,10 +93,10 @@ RENDER_SERVICE_ID=srv-dbrjb56tlv9c738mtsrg
 
 CLOUDFLARE_ACCOUNT_ID=...
 CLOUDFLARE_API_TOKEN=...
-R2_ACCESS_KEY_ID=...
-R2_SECRET_ACCESS_KEY=...
-R2_ENDPOINT=https://<account_id>.r2.cloudflarestorage.com
-R2_BUCKET_NAME=...
+
+# Facultatif : Only if a S3-compatible bucket is configured.
+MEDIA_STORAGE_DRIVER=database   # or s3
+R2_ENDPOINT=...
 ```
 
 `DATABASE_URL` s'obtient via `GET /api/v2/projects/{id}/connection_uri` (Neon), `REDIS_URL` et les tokens REST via `GET /v2/redis/databases` (Upstash, auth Basic e-mail + clé API).
@@ -196,9 +196,10 @@ Le projet Cloudflare Pages est en **upload direct** (`ad_hoc`) : aucun dépôt G
 
 ### Stockage
 
-- R2 n'est pas activé (demande carte bancaire).
-- Alternative gratuite : Supabase Storage (50 Mo/fichier).
-- Phase 1 : choisir l'une ou l'autre avant d'implémenter les uploads.
+- Les fichiers de la médiathèque sont stockés dans la table PostgreSQL `MediaObject` de Neon (`MEDIA_STORAGE_DRIVER=database`, défaut). Aucun fournisseur, carte bancaire ou bucket n'est nécessaire.
+- Les URLs de lecture passent par `GET /api/v1/media/file?key=...&exp=...&token=...`, signées en HMAC-SHA256 avec `AUTH_SECRET` et valables 30–3600 s. Elles ne donnent jamais d'accès permanent au fichier.
+- Le pilote `s3` reste dans le code pour un éventuel branchement R2/compatible S3 : il exige `R2_ENDPOINT`, `R2_BUCKET_NAME`, `R2_ACCESS_KEY_ID` et `R2_SECRET_ACCESS_KEY`. R2 demande une souscription Cloudflare avec moyen de paiement, mais son quota gratuit (10 Go/mois) reste à 0 € tant qu'il n'est pas dépassé.
+- `/media/:id/url` conserve la même signature d'API pour le frontend ; seule l'URL renvoyée change.
 
 ## Commandes courantes
 
@@ -234,7 +235,7 @@ git push                          # Déclenche Render automatiquement (API uniqu
 
 1. Régénérer tous les jetons (Neon, Upstash, Render, Cloudflare, GitHub) : une clé secrète R2 a figuré en clair dans l'historique Git de ce fichier — la rotation ne suffit pas, il faut aussi purger l'historique (git filter-repo / BFG) puis force-push.
 2. Vérifier avant chaque déploiement le jeu complet de variables Render (`NODE_ENV`, `CORS_ORIGINS`, `DATABASE_URL`, `REDIS_URL`, `AUTH_SECRET`) : voir le piège du `PUT` ci-dessus.
-3. Activer R2 (tableau de bord Cloudflare + carte bancaire), créer un bucket et renseigner `R2_BUCKET_NAME`, ou choisir Supabase Storage pour le stockage.
+3. Le stockage des médias est déjà actif dans Neon. Activer R2 uniquement si le volume dépasse le quota gratuit de la base ; dans ce cas poser `MEDIA_STORAGE_DRIVER=s3` et renseigner les variables `R2_*`.
 4. Ajouter un monitoring (Sentry ou autre).
 5. Certificat SSL/domaine personnalisé.
 6. Plan payant Render pour éviter la mise en veille.

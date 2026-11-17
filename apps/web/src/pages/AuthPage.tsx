@@ -216,9 +216,7 @@ export function AuthPage({ onAuthenticated }: Props) {
               autoComplete="new-password"
               minLength={8}
               visible={showPasswordConfirmation}
-              onToggleVisibility={() =>
-                setShowPasswordConfirmation((current) => !current)
-              }
+              onToggleVisibility={() => setShowPasswordConfirmation((current) => !current)}
             />
           )}
           {mode === 'register' && (
