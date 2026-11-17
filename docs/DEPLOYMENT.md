@@ -185,6 +185,7 @@ Le projet Cloudflare Pages est en **upload direct** (`ad_hoc`) : aucun dépôt G
 
 - Transport **Resend** activé en production : `MAIL_TRANSPORT=resend`, `RESEND_API_KEY` (clé secrète stockée sur Render, en accès complet à l'API Resend) et `MAIL_FROM=AI Social Studio <noreply@socialstudio.timestradinginter.com>`.
 - Domaine `socialstudio.timestradinginter.com` vérifié dans Resend (`ff1e606d-7e58-4d97-bb76-e0ac7339ca0c`, région `eu-west-1`). Les enregistrements DNS ont été publiés via l'API Hostinger sur la zone `timestradinginter.com` : DKIM `resend._domainkey.socialstudio`, MX `send.socialstudio`, SPF TXT `send.socialstudio` et CNAME `rsend.socialstudio`.
+- Validation finale après le déploiement Render `dep-dbu9i6jm8hqs73f6g53g` (live sur `a6637b2`) : une invitation créée via l'API de production a bien été envoyée par `AI Social Studio <noreply@socialstudio.timestradinginter.com>` (journal Resend `01a1eab9-d47e-7d9e-bf9a-5d45810a38cf`). Le compte jetable créé pour l'essai a été supprimé.
 - L'alternative SMTP Hostinger a été préparée (`noreply@timestradinginter.com`, ports 587 et 465) mais Render n'a pas pu joindre `smtp.hostinger.com` (`Connection timeout` dans les deux cas), alors que les tests locaux passaient. Le code SMTP reste disponible avec `MAIL_TRANSPORT=smtp`.
 - Le quota gratuit Resend est de 3 000 e-mails/mois et 100/jour.
 - Sans transport configuré (`MAIL_TRANSPORT=none`), le transport reste inerte et enregistre `NO_PROVIDER` : aucun succès n'est simulé.
