@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
 import { session, setSessionToken } from './lib/api';
@@ -66,6 +66,28 @@ describe('App', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('Les mots de passe ne correspondent pas.');
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('affiche le vrai message du serveur quand les identifiants sont incorrects', async () => {
+    vi.mocked(fetch).mockResolvedValue({
+      status: 401,
+      ok: false,
+      json: async () => ({ message: 'Identifiants incorrects' }),
+    } as Response);
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText('Adresse e-mail'), {
+      target: { value: 'loukstech@gmail.com' },
+    });
+    fireEvent.change(screen.getByLabelText('Mot de passe'), {
+      target: { value: 'mauvais-mot-de-passe' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Se connecter' }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent('Identifiants incorrects'),
+    );
+    expect(screen.getByRole('alert')).not.toHaveTextContent('Session expirée');
   });
 
   it('vérifie la session existante avant d’afficher le tableau de bord', () => {

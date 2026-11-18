@@ -218,7 +218,11 @@ async function request<T>(path: string, schema: z.ZodType<T>, init: RequestInit 
   } catch {
     throw new ApiError(0, 'API injoignable');
   }
-  if (response.status === 401) {
+  // Une 401 sur un appel authentifié signifie une session expirée. Sur les
+  // routes publiques d'authentification, c'est un refus de connexion : on
+  // laisse alors l'API afficher son vrai message (identifiants incorrects).
+  const isPublicAuth = path.startsWith('/auth/');
+  if (response.status === 401 && token && !isPublicAuth) {
     session.clear();
     throw new ApiError(401, 'Session expirée, reconnectez-vous');
   }
@@ -255,7 +259,8 @@ async function requestText(path: string): Promise<string> {
   } catch {
     throw new ApiError(0, 'API injoignable');
   }
-  if (response.status === 401) {
+  const isPublicAuth = path.startsWith('/auth/');
+  if (response.status === 401 && token && !isPublicAuth) {
     session.clear();
     throw new ApiError(401, 'Session expirée, reconnectez-vous');
   }
