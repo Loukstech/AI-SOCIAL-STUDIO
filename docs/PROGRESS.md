@@ -431,3 +431,16 @@ Validation en ligne : `pnpm test:storage` **22/22** (upload, URL signée téléc
 - Les textes hérités de la Phase 1 (« Phase 1 · Fondations SaaS », « modules IA et publication arrivent aux phases suivantes ») et le libellé « Phase 13 · Administration & crédits » ont été remplacés par une présentation de l'application livrée.
 - Correction d'un bug d'affichage : toute réponse `401` était traduite par « Session expirée, reconnectez-vous », y compris sur `POST /auth/login`. Les routes publiques `/auth/*` laissent désormais l'API afficher son vrai message (`Identifiants incorrects`). Un test Vitest couvre ce cas ; **7/7** tests web verts.
 - Commits `812b860` (branding) et `5814392` (correctif 401) poussés sur `main` et la branche de travail. Cloudflare Pages déployé sur la branche `main` : bundle final `index-Dy_GBYIY.js`, servi sur `ai-social-studio.pages.dev` et `www.socialstudio.timestradinginter.com`. `pnpm test:online` : **12/12**.
+
+---
+
+## Interface — refonte du tableau de bord et de la navigation (18 novembre 2026)
+
+**Statut : DÉPLOYÉ.**
+
+- La barre latérale est désormais **réductible** : bouton dédié, icônes seules en mode réduit avec infobulle, pastille de notifications, état actif coloré, préférence mémorisée dans `localStorage`. Un en-tête de contexte (page courante + organisation) a été ajouté au contenu.
+- Jeu d'icônes SVG inline dans `apps/web/src/components/icons.tsx` : navigation, indicateurs, actions rapides et état du système. Aucune dépendance ni police d'icônes supplémentaire.
+- Tableau de bord refondu : 4 indicateurs mis en avant, 7 indicateurs compacts, graphique en barres calculé sur les **vraies** ressources de l'espace, anneau de pipeline de publication dérivé des publications programmées, grille d'actions rapides et chronologie d'activité colorée par type. Aucune donnée n'est inventée : lorsque tout est à zéro, les graphiques le montrent.
+- Animations discrètes (`fade-in-up`, transition des barres, survol des cartes) avec respect de `prefers-reduced-motion`.
+- Qualité : **8 tests web** (dont un sur la réduction de la navigation), lint / typecheck / format / build verts.
+- Commit `3273a6f` poussé sur `main` et la branche de travail. Cloudflare Pages déployé : bundle `index-CwFbRt5q.js` sur les deux domaines. `pnpm test:online` : **12/12**.
