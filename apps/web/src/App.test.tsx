@@ -10,6 +10,7 @@ beforeEach(() => {
 
 afterEach(() => {
   window.location.hash = '';
+  window.localStorage.removeItem('ass.sidebar.collapsed');
   vi.unstubAllGlobals();
 });
 
@@ -104,5 +105,50 @@ describe('App', () => {
     ).toBeInTheDocument();
     fireEvent.click(screen.getAllByRole('button', { name: "Ouvrir l'application" })[0]!);
     expect(screen.getByRole('button', { name: 'Se connecter' })).toBeInTheDocument();
+  });
+
+  it('permet de réduire et de déployer la navigation latérale', async () => {
+    const json = (data: unknown) => ({ status: 200, ok: true, json: async () => data }) as Response;
+    vi.mocked(fetch).mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes('/auth/me')) {
+        return json({
+          id: 'user-1',
+          email: 'test@example.com',
+          name: 'Test',
+          createdAt: new Date().toISOString(),
+          isSuperAdmin: false,
+        });
+      }
+      if (url.includes('/organizations')) return json([]);
+      if (url.includes('/notifications/unread')) return json({ unread: 0 });
+      if (url.includes('/dashboard')) {
+        return json({
+          organizations: 1,
+          brands: 1,
+          media: 1,
+          members: 1,
+          pendingInvitations: 0,
+          videoProjects: 0,
+          contentProjects: 0,
+          publications: 0,
+          scheduledPublications: 0,
+          imageProjects: 0,
+          recentActivity: [],
+        });
+      }
+      return json({});
+    });
+
+    setSessionToken('jeton-de-test');
+    render(<App />);
+
+    await screen.findByRole('heading', { name: 'Tableau de bord' });
+    fireEvent.click(screen.getByRole('button', { name: 'Réduire la navigation' }));
+    expect(screen.getByRole('button', { name: 'Déployer la navigation' })).toBeInTheDocument();
+    expect(window.localStorage.getItem('ass.sidebar.collapsed')).toBe('1');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Déployer la navigation' }));
+    expect(screen.getByRole('button', { name: 'Réduire la navigation' })).toBeInTheDocument();
   });
 });

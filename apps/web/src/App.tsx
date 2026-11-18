@@ -7,6 +7,7 @@ import {
   type SocialPlatform,
   type User,
 } from '@ass/shared';
+import { Icon, type IconName } from './components/icons';
 import { api, session, setActiveOrganization } from './lib/api';
 import { AdminPage } from './pages/AdminPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
@@ -45,23 +46,23 @@ type Page =
   | 'admin'
   | 'system';
 
-const navigation: { id: Page; label: string }[] = [
-  { id: 'dashboard', label: 'Tableau de bord' },
-  { id: 'organizations', label: 'Organisations' },
-  { id: 'brands', label: 'Marques et Brand Kit' },
-  { id: 'media', label: 'Médiathèque' },
-  { id: 'social', label: 'Comptes sociaux' },
-  { id: 'video', label: 'AI Video Studio' },
-  { id: 'content', label: 'AI Content Studio' },
-  { id: 'image', label: 'AI Image Studio' },
-  { id: 'publishing', label: 'Centre de publication' },
-  { id: 'calendar', label: 'Calendrier éditorial' },
-  { id: 'analytics', label: 'Analytics' },
-  { id: 'clients', label: 'Espace client' },
-  { id: 'credits', label: 'Crédits et quotas' },
-  { id: 'admin', label: 'Administration' },
-  { id: 'notifications', label: 'Notifications' },
-  { id: 'system', label: 'État du système' },
+const navigation: { id: Page; label: string; icon: IconName }[] = [
+  { id: 'dashboard', label: 'Tableau de bord', icon: 'dashboard' },
+  { id: 'organizations', label: 'Organisations', icon: 'organizations' },
+  { id: 'brands', label: 'Marques et Brand Kit', icon: 'brands' },
+  { id: 'media', label: 'Médiathèque', icon: 'media' },
+  { id: 'social', label: 'Comptes sociaux', icon: 'social' },
+  { id: 'video', label: 'AI Video Studio', icon: 'video' },
+  { id: 'content', label: 'AI Content Studio', icon: 'content' },
+  { id: 'image', label: 'AI Image Studio', icon: 'image' },
+  { id: 'publishing', label: 'Centre de publication', icon: 'publishing' },
+  { id: 'calendar', label: 'Calendrier éditorial', icon: 'calendar' },
+  { id: 'analytics', label: 'Analytics', icon: 'analytics' },
+  { id: 'clients', label: 'Espace client', icon: 'clients' },
+  { id: 'credits', label: 'Crédits et quotas', icon: 'credits' },
+  { id: 'admin', label: 'Administration', icon: 'admin' },
+  { id: 'notifications', label: 'Notifications', icon: 'notifications' },
+  { id: 'system', label: 'État du système', icon: 'system' },
 ];
 
 /**
@@ -95,6 +96,13 @@ export function App() {
   const [activeOrg, setActiveOrg] = useState<string | null>(session.organizationId);
   const [notice, setNotice] = useState(oauthReturn?.notice ?? '');
   const [unread, setUnread] = useState(0);
+  const [collapsed, setCollapsed] = useState(
+    () => window.localStorage.getItem('ass.sidebar.collapsed') === '1',
+  );
+
+  useEffect(() => {
+    window.localStorage.setItem('ass.sidebar.collapsed', collapsed ? '1' : '0');
+  }, [collapsed]);
 
   /**
    * Rôle réel dans l'organisation active, tel que l'API le renvoie déjà dans la
@@ -103,6 +111,10 @@ export function App() {
    */
   const activeRole: OrganizationRole =
     organizations.find((organization) => organization.id === activeOrg)?.role ?? 'VIEWER';
+  const activeOrgName =
+    organizations.find((organization) => organization.id === activeOrg)?.name ??
+    'Aucune organisation';
+  const currentNav = navigation.find((item) => item.id === page) ?? navigation[0]!;
 
   /**
    * Compteur de notifications non lues.
@@ -275,76 +287,143 @@ export function App() {
   }
 
   return (
-    <div className="min-h-dvh lg:grid lg:grid-cols-[248px_1fr]">
-      <aside className="border-b border-border bg-surface lg:border-b-0 lg:border-r">
-        <div className="flex h-full flex-col gap-6 p-5">
-          <div>
-            <p className="text-xs font-medium text-accent">Suite de création sociale</p>
-            <div className="mt-1 flex items-center gap-2">
-              <img src="/logo.png" alt="" className="h-7 w-7 rounded-lg" />
-              <h1 className="text-lg font-semibold tracking-tight">AI Social Studio</h1>
+    <div
+      className={`min-h-dvh transition-[grid-template-columns] duration-300 lg:grid ${
+        collapsed ? 'lg:grid-cols-[76px_1fr]' : 'lg:grid-cols-[248px_1fr]'
+      }`}
+    >
+      <aside
+        className={`border-b border-border bg-surface lg:sticky lg:top-0 lg:h-dvh lg:border-b-0 lg:border-r ${
+          collapsed ? 'p-3' : 'p-5'
+        }`}
+      >
+        <div className="flex h-full flex-col gap-6">
+          <div
+            className={`flex items-center ${collapsed ? 'lg:flex-col lg:gap-3' : 'justify-between'}`}
+          >
+            <div className={`flex items-center gap-2 ${collapsed ? 'lg:justify-center' : ''}`}>
+              <img src="/logo.png" alt="" className="h-8 w-8 rounded-xl" />
+              {!collapsed && (
+                <div className="leading-tight">
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-accent">
+                    Suite de création sociale
+                  </p>
+                  <h1 className="text-base font-semibold tracking-tight">AI Social Studio</h1>
+                </div>
+              )}
             </div>
+            <button
+              type="button"
+              onClick={() => setCollapsed((value) => !value)}
+              aria-label={collapsed ? 'Déployer la navigation' : 'Réduire la navigation'}
+              title={collapsed ? 'Déployer la navigation' : 'Réduire la navigation'}
+              className="rounded-lg p-2 text-text-muted transition-colors hover:bg-bg hover:text-accent focus-visible:outline-2 focus-visible:outline-accent"
+            >
+              <Icon name={collapsed ? 'panelOpen' : 'panelClose'} className="h-4 w-4" />
+            </button>
           </div>
 
           <nav className="flex flex-wrap gap-1 lg:flex-col">
             {navigation
               .filter((item) => item.id !== 'admin' || user.isSuperAdmin)
-              .map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setPage(item.id)}
-                  className={`flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors ${
-                    page === item.id
-                      ? 'bg-accent/12 font-medium text-accent'
-                      : 'text-text-muted hover:bg-bg hover:text-text'
-                  }`}
-                >
-                  <span>{item.label}</span>
-                  {item.id === 'notifications' && badgeLabel(unread) && (
-                    <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-bg tabular-nums">
-                      {badgeLabel(unread)}
-                    </span>
-                  )}
-                </button>
-              ))}
+              .map((item) => {
+                const active = page === item.id;
+                const badge = item.id === 'notifications' ? badgeLabel(unread) : '';
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setPage(item.id)}
+                    title={collapsed ? item.label : undefined}
+                    className={`relative flex items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-all duration-200 hover:translate-x-0.5 ${
+                      active
+                        ? 'bg-accent/15 font-medium text-accent shadow-[inset_2px_0_0_var(--accent)]'
+                        : 'text-text-muted hover:bg-bg hover:text-text'
+                    } ${collapsed ? 'lg:justify-center lg:px-2' : ''}`}
+                  >
+                    <Icon name={item.icon} className="h-[18px] w-[18px] shrink-0" />
+                    <span className={collapsed ? 'lg:sr-only' : ''}>{item.label}</span>
+                    {badge &&
+                      (collapsed ? (
+                        <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-accent" />
+                      ) : (
+                        <span className="ml-auto rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-bg tabular-nums">
+                          {badge}
+                        </span>
+                      ))}
+                  </button>
+                );
+              })}
           </nav>
 
           <div className="mt-auto space-y-3 border-t border-border pt-4 text-sm">
-            {organizations.length > 0 && (
-              <label className="block space-y-1">
-                <span className="block text-xs text-text-muted">Organisation active</span>
-                <select
-                  value={activeOrg ?? ''}
-                  onChange={(e) => selectOrganization(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-bg px-2 py-1.5 text-sm outline-none focus:border-accent"
+            {collapsed ? (
+              <div className="flex flex-col items-center gap-3">
+                <span
+                  title={activeOrgName}
+                  className="flex h-9 w-9 items-center justify-center rounded-xl bg-accent/15 text-xs font-semibold text-accent"
                 >
-                  {organizations.map((org) => (
-                    <option key={org.id} value={org.id}>
-                      {org.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  {activeOrgName.slice(0, 2).toUpperCase() || '—'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void signOut()}
+                  aria-label="Déconnexion"
+                  title="Déconnexion"
+                  className="rounded-lg p-2 text-text-muted transition-colors hover:bg-bg hover:text-danger"
+                >
+                  <Icon name="logout" className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <>
+                {organizations.length > 0 && (
+                  <label className="block space-y-1">
+                    <span className="block text-xs text-text-muted">Organisation active</span>
+                    <select
+                      value={activeOrg ?? ''}
+                      onChange={(e) => selectOrganization(e.target.value)}
+                      className="w-full rounded-lg border border-border bg-bg px-2 py-1.5 text-sm outline-none focus:border-accent"
+                    >
+                      {organizations.map((org) => (
+                        <option key={org.id} value={org.id}>
+                          {org.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate text-xs text-text-muted" title={user.email}>
+                    {user.name}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => void signOut()}
+                    className="text-xs text-text-muted underline-offset-2 hover:text-accent hover:underline"
+                  >
+                    Déconnexion
+                  </button>
+                </div>
+              </>
             )}
-            <div className="flex items-center justify-between gap-2">
-              <span className="truncate text-xs text-text-muted" title={user.email}>
-                {user.name}
-              </span>
-              <button
-                type="button"
-                onClick={() => void signOut()}
-                className="text-xs text-text-muted underline-offset-2 hover:text-accent hover:underline"
-              >
-                Déconnexion
-              </button>
-            </div>
           </div>
         </div>
       </aside>
 
-      <main className="px-4 py-8 lg:px-10" key={`${page}:${activeOrg ?? ''}`}>
-        <div className="mx-auto max-w-5xl">
+      <main className="px-4 py-6 lg:px-8" key={`${page}:${activeOrg ?? ''}`}>
+        <header className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-4">
+          <div className="flex items-center gap-2 text-sm">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent/10 text-accent">
+              <Icon name={currentNav.icon} className="h-4 w-4" />
+            </span>
+            <span className="font-medium text-text">{currentNav.label}</span>
+          </div>
+          <span className="rounded-full border border-border bg-surface px-3 py-1 text-xs text-text-muted">
+            {activeOrgName}
+          </span>
+        </header>
+        <div className="mx-auto max-w-6xl">
           {notice && (
             <p
               role="status"

@@ -1,8 +1,19 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react';
+import type { ButtonHTMLAttributes, CSSProperties, InputHTMLAttributes, ReactNode } from 'react';
 
-export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
+export function Card({
+  children,
+  className = '',
+  style,
+}: {
+  children: ReactNode;
+  className?: string;
+  style?: CSSProperties;
+}) {
   return (
-    <section className={`rounded-xl border border-border bg-surface p-5 ${className}`}>
+    <section
+      className={`rounded-xl border border-border bg-surface p-5 ${className}`}
+      style={style}
+    >
       {children}
     </section>
   );
