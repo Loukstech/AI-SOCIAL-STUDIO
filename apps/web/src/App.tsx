@@ -279,8 +279,11 @@ export function App() {
       <aside className="border-b border-border bg-surface lg:border-b-0 lg:border-r">
         <div className="flex h-full flex-col gap-6 p-5">
           <div>
-            <p className="text-xs font-medium text-accent">Phase 13 · Administration & crédits</p>
-            <h1 className="mt-1 text-lg font-semibold tracking-tight">AI Social Studio</h1>
+            <p className="text-xs font-medium text-accent">Suite de création sociale</p>
+            <div className="mt-1 flex items-center gap-2">
+              <img src="/logo.png" alt="" className="h-7 w-7 rounded-lg" />
+              <h1 className="text-lg font-semibold tracking-tight">AI Social Studio</h1>
+            </div>
           </div>
 
           <nav className="flex flex-wrap gap-1 lg:flex-col">

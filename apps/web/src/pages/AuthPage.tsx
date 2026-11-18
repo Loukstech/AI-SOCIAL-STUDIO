@@ -143,10 +143,10 @@ export function AuthPage({ onAuthenticated }: Props) {
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center gap-6 px-4 py-12">
       <header className="space-y-2 text-center">
-        <p className="text-sm font-medium text-accent">Phase 1 · Fondations SaaS</p>
+        <img src="/logo.png" alt="" className="mx-auto h-16 w-16 rounded-2xl" />
         <h1 className="text-3xl font-semibold tracking-tight">AI Social Studio</h1>
         <p className="text-sm text-text-muted">
-          Créez votre espace de travail, gérez vos marques et préparez vos contenus.
+          Créez, organisez et publiez vos contenus sociaux depuis un seul espace.
         </p>
       </header>
 
@@ -251,8 +251,8 @@ export function AuthPage({ onAuthenticated }: Props) {
       </section>
 
       <p className="text-center text-xs text-text-muted">
-        Vos données sont isolées par organisation. Connectez vos comptes sociaux dès maintenant ;
-        les modules IA et publication arrivent aux phases suivantes.
+        Vos données sont isolées par organisation. Retrouvez vos marques, votre médiathèque, vos
+        contenus, vos visuels et vos publications dans un même espace.
       </p>
     </main>
   );
