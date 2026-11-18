@@ -420,3 +420,14 @@ Validation en ligne : `pnpm test:storage` **22/22** (upload, URL signée téléc
 - Les invitations envoient le lien d'acceptation par e-mail, en best-effort : un échec est journalisé et tracé dans les métadonnées d'audit (`emailStatus`), mais l'invitation reste créée. Les adresses `.test` et l'environnement de test sont volontairement ignorés.
 - Précision sur Resend : le plan gratuit est de **3 000 e-mails/mois et 100/jour**, donc pas illimité. Le domaine vérifié permet désormais d'écrire à n'importe quelle adresse.
 - Qualité : **441 tests unitaires** (3 SMTP + 3 Resend), typecheck vert.
+
+---
+
+## Interface — identité visuelle et messages d'authentification (18 novembre 2026)
+
+**Statut : CORRIGÉ ET DÉPLOYÉ.**
+
+- Le logo fourni est intégré dans `apps/web/public/logo.png` (512 px) et `apps/web/public/favicon.png` (64 px), référencés dans `index.html` (`icon`, `apple-touch-icon`, description et `theme-color`). Il apparaît aussi sur l'écran de connexion et dans la barre latérale.
+- Les textes hérités de la Phase 1 (« Phase 1 · Fondations SaaS », « modules IA et publication arrivent aux phases suivantes ») et le libellé « Phase 13 · Administration & crédits » ont été remplacés par une présentation de l'application livrée.
+- Correction d'un bug d'affichage : toute réponse `401` était traduite par « Session expirée, reconnectez-vous », y compris sur `POST /auth/login`. Les routes publiques `/auth/*` laissent désormais l'API afficher son vrai message (`Identifiants incorrects`). Un test Vitest couvre ce cas ; **7/7** tests web verts.
+- Commits `812b860` (branding) et `5814392` (correctif 401) poussés sur `main` et la branche de travail. Cloudflare Pages déployé sur la branche `main` : bundle final `index-Dy_GBYIY.js`, servi sur `ai-social-studio.pages.dev` et `www.socialstudio.timestradinginter.com`. `pnpm test:online` : **12/12**.
